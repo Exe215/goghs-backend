@@ -21,27 +21,32 @@ app.get('/', function (req, res) {
 });
 
 
-app.listen(3001, function () {
+app.listen(3001,'0.0.0.0', function () {
   console.log('Listening on port 3001!');
 });
 
 app.post('/api/getImage', async function (req, res) {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
     const url = req.body.imageurl;
     console.log(url);
     
-     const responso = await axios.get(url,  { responseType: 'arraybuffer' });
-    const buffer = Buffer.from(responso.data, "utf-8");
-    buffer.name = "image.png"
-
-    const response = await openai.createImageVariation(
-        buffer,
-        1,
-        "1024x1024"
-      );
-      image_url = response.data.data[0].url;
-
-    res.send(image_url)
+    try{
+      const responso = await axios.get(url,  { responseType: 'arraybuffer' });
+      const buffer = Buffer.from(responso.data, "utf-8");
+      buffer.name = "image.png"
+  
+      const response = await openai.createImageVariation(
+          buffer,
+          1,
+          "1024x1024"
+        );
+        image_url = response.data.data[0].url;
+  
+      res.send({ image_url: image_url });
+    }catch(e) {
+      console.log(e);
+      res.send({ error: e});
+    }
+    
 
 
 });
