@@ -24,7 +24,7 @@ app.listen(3000, function () {
 });
 
 app.post('/api/getImage', async function (req, res) {
-    
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
     const url = req.body.imageurl;
     console.log(url);
     
