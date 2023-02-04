@@ -1,14 +1,16 @@
 var express = require('express');
 var app = express();
 const path = require('path');
-const fs = require('fs')
-const axios = require('axios')
+const fs = require('fs');
+const axios = require('axios');
+const cors = require('cors');
 const { Configuration, OpenAIApi } = require("openai");
 const configuration = new Configuration({
   apiKey: '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',
 });
 const openai = new OpenAIApi(configuration);
 const fileUpload = require('express-fileupload');
+app.use(cors());
 app.use(express.urlencoded());
 app.use(express.json());
 
@@ -19,8 +21,8 @@ app.get('/', function (req, res) {
 });
 
 
-app.listen(3000, function () {
-  console.log('Listening on port 3000!');
+app.listen(3001, function () {
+  console.log('Listening on port 3001!');
 });
 
 app.post('/api/getImage', async function (req, res) {
