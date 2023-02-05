@@ -1,20 +1,21 @@
-var express = require('express');
-var app = express();
-const path = require('path');
-const fs = require('fs');
-const axios = require('axios');
-const cors = require('cors');
-const { Configuration, OpenAIApi } = require("openai");
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import axios from 'axios';
+import fetch, { Headers } from 'node-fetch';
+import cors from 'cors';
+import { toMetaplexFile } from '@metaplex-foundation/js';
+import { Configuration, OpenAIApi } from "openai"
+
 const configuration = new Configuration({
   apiKey: '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',
 });
 const openai = new OpenAIApi(configuration);
-const fileUpload = require('express-fileupload');
+
+var app = express();
 app.use(cors());
 app.use(express.urlencoded());
 app.use(express.json());
-
-app.use(fileUpload());
 
 app.get('/', function (req, res) {
     res.sendFile(path.join(__dirname, '/index.html'));
@@ -39,9 +40,22 @@ app.post('/api/getImage', async function (req, res) {
           1,
           "1024x1024"
         );
-        image_url = response.data.data[0].url;
-  
-      res.send({ image_url: image_url });
+        console.log(response, 'response')
+        const image_url = response.data.data[0].url;
+
+        
+        console.log(image_url)
+        let file ;
+        fetch(image_url)
+          .then(response => response.arrayBuffer())
+          .then(arrayBuffer => {
+            file = toMetaplexFile(arrayBuffer, 'image.jpg');
+            console.log(file)
+            res.send({file});
+          });
+
+
+      
     }catch(e) {
       console.log(e);
       res.send({ error: e});
