@@ -88,10 +88,18 @@ app.post("/api/getImage", async function (req, res) {
 
     console.log("Trying to upload the Metadata");
 
+    console.log(nft.json, "nft json");
+    const oldAttributes = nft.json?.attributes || [{ value: "0" }];
+    const oldEvolutionValue = Number(oldAttributes[0].value);
+
     const { uri } = await metaplex.nfts().uploadMetadata({
       ...nft.json,
-      name: "Test",
-      description: "My Updated Metadata Description",
+      attributes: [
+        {
+          trait_type: "Evolution",
+          value: `${oldEvolutionValue + 1}`,
+        },
+      ],
       image: metaplexImageUri,
     });
 
