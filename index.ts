@@ -44,63 +44,65 @@ app.listen(3001, "0.0.0.0", function () {
   console.log("Listening on port 3001!");
 });
 
-
 app.post("/api/getImage", async function (req, res) {
-  const mintAddress = req.body.mintAddress;
+  const mint = req.body.mintAddress;
   //const mintAddress = "2JJUoWhpJK32CoZjkH8w8dSzH9YF7fzXN3zFuvkrrUcU";
 
   try {
-
-    const mint = mintAddress
-    // Get Image from NFT 
+    // Get Image from NFT
     const nft = await metaplex
       .nfts()
       .findByMint({ mintAddress: new PublicKey(mint) });
-    const imageUrl = await axios.get(nft.uri);
-    console.log(imageUrl)
-    const url = imageUrl.data.image
+    const imageUrlResponse = await axios.get(nft.uri);
+    console.log(imageUrlResponse);
+    const oldImageUrl = imageUrlResponse.data.image;
+
+    const responseOldImage = await axios.get(oldImageUrl, {
+      responseType: "arraybuffer",
+    });
+    const buffer = Buffer.from(responseOldImage.data, "utf-8");
+    const oldImageFile: any = buffer;
+    oldImageFile.name = "image.png";
 
     //OPENAI Variation
-    const responseNFT = await axios.get(url, { responseType: "arraybuffer" });
-    const buffer = Buffer.from(responseNFT.data, "utf-8");
-    const imagefile: any = buffer;
-    imagefile.name = "image.png";
+    const responseOpenAI = await openai.createImageVariation(
+      oldImageFile,
+      1,
+      "1024x1024"
+    );
+    const newImageUrl = responseOpenAI.data.data[0].url;
 
-    const responseOpenAI = await openai.createImageVariation(imagefile, 1, "1024x1024");
-    console.log(responseOpenAI, "response");
-    const image_url = responseOpenAI.data.data[0].url;
-
-    let file: MetaplexFile;
     //Get Image and Convert to Metaplex File
-    if (!image_url) {
-      return
-    }
-    const responseMetaPlex = await axios.get(image_url, { responseType: 'arraybuffer' });
-    file = toMetaplexFile(responseMetaPlex.data, "image.jpg");
-    const imageUri = await metaplex.storage().upload(file);
+    let metaplexFile: MetaplexFile;
 
+    if (!newImageUrl) {
+      res.sendStatus(500);
+      return;
+    }
+
+    const responseMetaPlex = await axios.get(newImageUrl, {
+      responseType: "arraybuffer",
+    });
+    metaplexFile = toMetaplexFile(responseMetaPlex.data, "image.jpg");
+    const metaplexImageUri = await metaplex.storage().upload(metaplexFile);
 
     console.log("Trying to upload the Metadata");
 
     const { uri } = await metaplex.nfts().uploadMetadata({
+      ...nft.json,
       name: "Test",
       description: "My Updated Metadata Description",
-      image: imageUri,
+      image: metaplexImageUri,
     });
 
-    const updatedNft = await metaplex.nfts().update({
+    await metaplex.nfts().update({
       nftOrSft: nft,
       uri,
     });
 
-    res.sendStatus(200)
-
-
-
+    res.sendStatus(200);
   } catch (e) {
     console.log(e);
-    res.send({ error: e });
+    res.sendStatus(500);
   }
-
 });
-
