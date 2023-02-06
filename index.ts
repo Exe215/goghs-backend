@@ -14,6 +14,9 @@ import { Configuration, OpenAIApi } from "openai";
 import path from "path";
 import secret from "./devnet.json";
 
+const BASE_IMAGE_URL =
+  "https://arweave.net/I2dvS-utEDRcvfzRyUFls3SFP-3MkAfb_RFamxnIeSw?ext=png";
+
 const configuration = new Configuration({
   apiKey: "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",
 });
@@ -42,6 +45,36 @@ app.get("/", function (req, res) {
 
 app.listen(3001, "0.0.0.0", function () {
   console.log("Listening on port 3001!");
+});
+
+app.post("/api/resetImage", async function (req, res) {
+  const mint = req.body.mintAddress;
+  try {
+    const nft = await metaplex
+      .nfts()
+      .findByMint({ mintAddress: new PublicKey(mint) });
+
+    const { uri } = await metaplex.nfts().uploadMetadata({
+      ...nft.json,
+      attributes: [
+        {
+          trait_type: "Evolution",
+          value: "0",
+        },
+      ],
+      image: BASE_IMAGE_URL,
+    });
+
+    await metaplex.nfts().update({
+      nftOrSft: nft,
+      uri,
+    });
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.log(error);
+    res.sendStatus(500);
+  }
 });
 
 app.post("/api/getImage", async function (req, res) {
