@@ -2,13 +2,14 @@ import {
   bundlrStorage,
   keypairIdentity,
   Metaplex,
+  MetaplexFile,
   toMetaplexFile,
 } from "@metaplex-foundation/js";
 import { clusterApiUrl, Connection, Keypair, PublicKey } from "@solana/web3.js";
 import axios from "axios";
 import cors from "cors";
 import express from "express";
-import fetch from "node-fetch";
+//import fetch from "node-fetch";
 import { Configuration, OpenAIApi } from "openai";
 import path from "path";
 import secret from "./devnet.json";
@@ -43,38 +44,63 @@ app.listen(3001, "0.0.0.0", function () {
   console.log("Listening on port 3001!");
 });
 
+
 app.post("/api/getImage", async function (req, res) {
-  // const mintAddress = req.body.mintAddress;
-  const mintAddress = "2JJUoWhpJK32CoZjkH8w8dSzH9YF7fzXN3zFuvkrrUcU";
+  const mintAddress = req.body.mintAddress;
+  //const mintAddress = "2JJUoWhpJK32CoZjkH8w8dSzH9YF7fzXN3zFuvkrrUcU";
 
   try {
-    // Find Image Url of metadata
+
+    const mint = mintAddress
+    // Get Image from NFT 
     const nft = await metaplex
       .nfts()
-      .findByMint({ mintAddress: new PublicKey(mintAddress) });
+      .findByMint({ mintAddress: new PublicKey(mint) });
     const imageUrl = await axios.get(nft.uri);
-    console.log(imageUrl);
+    console.log(imageUrl)
+    const url = imageUrl.data.image
 
-    // Fetch
-    // const responso = await axios.get(url, { responseType: "arraybuffer" });
-    // const buffer = Buffer.from(responso.data, "utf-8");
-    // buffer.name = "image.png";
+    //OPENAI Variation
+    const responseNFT = await axios.get(url, { responseType: "arraybuffer" });
+    const buffer = Buffer.from(responseNFT.data, "utf-8");
+    const imagefile: any = buffer;
+    imagefile.name = "image.png";
 
-    // const response = await openai.createImageVariation(buffer, 1, "1024x1024");
-    // console.log(response, "response");
-    // const image_url = response.data.data[0].url;
+    const responseOpenAI = await openai.createImageVariation(imagefile, 1, "1024x1024");
+    console.log(responseOpenAI, "response");
+    const image_url = responseOpenAI.data.data[0].url;
 
-    // console.log(image_url);
-    // let file;
-    // fetch(image_url)
-    //   .then((response) => response.arrayBuffer())
-    //   .then((arrayBuffer) => {
-    //     file = toMetaplexFile(arrayBuffer, "image.jpg");
-    //     console.log(file);
-    //     res.send({ file });
-    //   });
+    let file: MetaplexFile;
+    //Get Image and Convert to Metaplex File
+    if (!image_url) {
+      return
+    }
+    const responseMetaPlex = await axios.get(image_url, { responseType: 'arraybuffer' });
+    file = toMetaplexFile(responseMetaPlex.data, "image.jpg");
+    const imageUri = await metaplex.storage().upload(file);
+
+
+    console.log("Trying to upload the Metadata");
+
+    const { uri } = await metaplex.nfts().uploadMetadata({
+      name: "Test",
+      description: "My Updated Metadata Description",
+      image: imageUri,
+    });
+
+    const updatedNft = await metaplex.nfts().update({
+      nftOrSft: nft,
+      uri,
+    });
+
+    res.sendStatus(200)
+
+
+
   } catch (e) {
     console.log(e);
     res.send({ error: e });
   }
+
 });
+
