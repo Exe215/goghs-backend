@@ -49,21 +49,33 @@ app.listen(3001, "0.0.0.0", function () {
 
 app.post("/api/resetImage", async function (req, res) {
   const mint = req.body.mintAddress;
+  const evolution = req.body.evolution || "0";
+
+
   try {
     const nft = await metaplex
       .nfts()
       .findByMint({ mintAddress: new PublicKey(mint) });
 
-    const { uri } = await metaplex.nfts().uploadMetadata({
+    const historyLength = ((nft.json?.properties?.history as (Array<String> | null))?.length || 0);
+    if (Number(evolution) > historyLength) {
+      console.log("evolution and historyLength dont match:", evolution, historyLength)
+      res.sendStatus(500)
+    }
+
+    const nftWithChangedMetaData = {
       ...nft.json,
       attributes: [
         {
           trait_type: "Evolution",
-          value: "0",
+          value: evolution,
         },
       ],
       image: BASE_IMAGE_URL,
-    });
+    };
+    console.log(nftWithChangedMetaData, "nftWithChangedMetaData");
+
+    const { uri } = await metaplex.nfts().uploadMetadata(nftWithChangedMetaData);
 
     await metaplex.nfts().update({
       nftOrSft: nft,
@@ -120,12 +132,30 @@ app.post("/api/getImage", async function (req, res) {
     const metaplexImageUri = await metaplex.storage().upload(metaplexFile);
 
     console.log("Trying to upload the Metadata");
-
-    console.log(nft.json, "nft json");
     const oldAttributes = nft.json?.attributes || [{ value: "0" }];
     const oldEvolutionValue = Number(oldAttributes[0].value);
 
-    const { uri } = await metaplex.nfts().uploadMetadata({
+    // History always includes the currently newest image as well
+    // if we generate the first variation we simply add the base image as the history
+    const oldHistory = (nft.json?.properties?.history as (Array<String> | null)) || [BASE_IMAGE_URL];
+    const oldImageUri = nft.json?.image;
+
+    let newHistory;
+    if (oldHistory.length == oldEvolutionValue + 1) {
+      // This is the case if we simply progress in our evolution
+      newHistory = [
+        ...oldHistory,
+        metaplexImageUri,
+      ];
+    } else {
+      // This is the case if we have previously reset the image to a prior point
+      newHistory = [
+        ...oldHistory.slice(0, oldEvolutionValue + 1),
+        metaplexImageUri,
+      ];
+    }
+
+    const nftWithChangedMetaData = {
       ...nft.json,
       attributes: [
         {
@@ -133,8 +163,16 @@ app.post("/api/getImage", async function (req, res) {
           value: `${oldEvolutionValue + 1}`,
         },
       ],
+      properties: {
+        ...nft.json?.properties,
+        "history": newHistory,
+      },
       image: metaplexImageUri,
-    });
+    };
+
+    console.log(nftWithChangedMetaData, "nftWithChangedMetaData");
+
+    const { uri } = await metaplex.nfts().uploadMetadata(nftWithChangedMetaData);
 
     await metaplex.nfts().update({
       nftOrSft: nft,
