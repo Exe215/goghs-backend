@@ -47,51 +47,146 @@ app.listen(3001, "0.0.0.0", function () {
   console.log("Listening on port 3001!");
 });
 
-app.post("/api/resetImage", async function (req, res) {
-  const mint = req.body.mintAddress;
-  const evolution = req.body.evolution || "0";
+// TODO add transaction ID for payment check !!!!!!!!!!!!!!!!!!!!!!!!!!!
+/// Parameters:
+/// - nft_address   § "2JJ...UcU"
+/// - index_path    § [0,1,0]
+///
+/// Checks if [index_path] is valid for the existing history.
+/// Extracts the image url for that path.
+/// Sets that image to be the new cover.
+/// Sets the focusIndex and visiblePath to that new cover.
+///
+/// Returns error if no history exists yet (means the original nft is untouched => no need to setCover).
+app.post("/api/setCover", async function (req, res) {
+  console.log("================================");
+  console.log("/api/setCover");
+
+  // ------------------------------------------------------------------
+  // Check parameters
+
+  let nftAddress: string;
+  let indexPath: Array<number>;
+  try {
+    nftAddress = req.body.nft_address;
+    indexPath = req.body.index_path;
+    if (indexPath.length < 1) {
+      console.log("ERR empty index path");
+      res.sendStatus(400);
+      return;
+    }
+  } catch {
+    console.log("ERR missing params", req);
+    res.sendStatus(400);
+    return;
+  }
 
 
   try {
     const nft = await metaplex
       .nfts()
-      .findByMint({ mintAddress: new PublicKey(mint) });
+      .findByMint({ mintAddress: new PublicKey(nftAddress) });
 
-    const historyLength = ((nft.json?.properties?.history as (Array<String> | null))?.length || 0);
-    if (Number(evolution) > historyLength) {
-      console.log("evolution and historyLength dont match:", evolution, historyLength)
-      res.sendStatus(500)
+    const nftMetaData = nft.json;
+    if (!nftMetaData) {
+      console.log("No metadata in nft");
+      res.sendStatus(500);
+      return;
     }
 
+    // ------------------------------------------------------------------
+    // Check if the path is valid
+
+    let imgUrlAtPath;
+    let history: any = nftMetaData.properties!.history;
+    if (history) {
+      let children = history.rootImages;
+      let imageUrl: string = "";
+      // We return 400 at the top if length is less than one
+      for (let i = 0; i < indexPath.length; i++) {
+        let childKey = Object.keys(children)[indexPath[i]];
+        children = children[childKey];
+      }
+      imgUrlAtPath = imageUrl;
+    } else {
+      // if the metadata does not have the history prop,
+      // it is a freshly minted one and does not need to be set
+      console.log("ERR no history yet; does not make sense to request a cover set", indexPath);
+      res.sendStatus(400);
+      return;
+    }
+    console.log("Found imgUrlAtPath:", imgUrlAtPath);
+
+    // ------------------------------------------------------------------
+    // Update the nft meta data
+
+    // get evolution attribute
+    const oldAttributes = nftMetaData?.attributes || [{ trait_type: "Evolution", value: "0" }];
+    const oldEvolutionValue = Number(oldAttributes[0].value);
+    const newEvolutionValue = oldEvolutionValue + 1;
+
+    // get history property or init if freshly minted
+    const oldHistory: any = nftMetaData!.properties!.history;
+
+    // adjust the visible path and focus
+    let newVisiblePath = indexPath;
+    let newFocusIndex = newVisiblePath.length - 1;
+
+    const newHistory = {
+      focusIndex: newFocusIndex,
+      visiblePath: newVisiblePath,
+      rootImages: oldHistory.rootImages, // Unchanged
+    };
+
     const nftWithChangedMetaData = {
-      ...nft.json,
+      ...nftMetaData,
       attributes: [
         {
           trait_type: "Evolution",
-          value: evolution,
+          value: newEvolutionValue.toString(),
         },
       ],
-      image: BASE_IMAGE_URL,
+      properties: {
+        ...nftMetaData.properties,
+        "files": [
+          {
+            "uri": imgUrlAtPath,
+            "type": "image/png"
+          }
+        ],
+        "history": newHistory,
+      },
+      image: imgUrlAtPath,
     };
-    console.log(nftWithChangedMetaData, "nftWithChangedMetaData");
 
-    const { uri } = await metaplex.nfts().uploadMetadata(nftWithChangedMetaData);
+    console.log(JSON.stringify(nftWithChangedMetaData), "nftWithChangedMetaData");
+
+    const { uri: newNftMetaDataUrl } = await metaplex.nfts().uploadMetadata(nftWithChangedMetaData);
 
     await metaplex.nfts().update({
       nftOrSft: nft,
-      uri,
+      uri: newNftMetaDataUrl,
     });
 
     res.sendStatus(200);
-  } catch (error) {
-    console.log(error);
+  } catch (e) {
+    console.log(e);
     res.sendStatus(500);
   }
 });
 
-/// {"nft_address" : "2JJ...UcU", "index_path": [0,1,0]} // TODO add transaction ID for payment check
-//app.post("/api/variation", async function (req, res) {
-app.post("/api/getImage", async function (req, res) {
+
+// TODO add transaction ID for payment check !!!!!!!!!!!!!!!!!!!!!!!!!!!
+/// Parameters:
+/// - nft_address   § "2JJ...UcU"
+/// - index_path    § [0,1,0]
+///
+/// Extracts the image belonging to [index_path] from the history.
+/// Generates a new variation for that image.
+/// Inserts that new variation back into the tree as a child of [index_path].
+/// Sets the focusIndex and visiblePath to that new variation.
+/// Sets that image to be the new cover.
+app.post("/api/variation", async function (req, res) {
   console.log("================================");
   console.log("/api/variation");
 
@@ -144,15 +239,6 @@ app.post("/api/getImage", async function (req, res) {
       }
       imgUrlAtPath = imageUrl;
     } else {
-      // TODO write this as new with the one new child
-      // history = {
-      //   "focusIndex": 0,
-      //   "visiblePath": [0],
-      //   "rootImages": {
-      //     // wtf JS wtf is this shit, you seriously want me to put brackets here you fucking ass clown
-      //     [nftCoverImageUrl]: {},
-      //   }
-      // };
       let indexPathPointsToRoot = indexPath.length == 1 && indexPath[0] == 0;
       if (!indexPathPointsToRoot) {
         console.log("ERR no history yet, but index path does not point to root", indexPath);
@@ -281,3 +367,5 @@ app.post("/api/getImage", async function (req, res) {
     res.sendStatus(500);
   }
 });
+
+
