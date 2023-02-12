@@ -89,94 +89,184 @@ app.post("/api/resetImage", async function (req, res) {
   }
 });
 
+/// {"nft_address" : "2JJ...UcU", "index_path": [0,1,0]} // TODO add transaction ID for payment check
+//app.post("/api/variation", async function (req, res) {
 app.post("/api/getImage", async function (req, res) {
-  const mint = req.body.mintAddress;
-  //const mintAddress = "2JJUoWhpJK32CoZjkH8w8dSzH9YF7fzXN3zFuvkrrUcU";
+  console.log("================================");
+  console.log("/api/variation");
+
+  // ------------------------------------------------------------------
+  // Check parameters
+
+  let nftAddress: string;
+  let indexPath: Array<number>;
+  try {
+    nftAddress = req.body.nft_address;
+    indexPath = req.body.index_path;
+    if (indexPath.length < 1) {
+      console.log("ERR empty index path");
+      res.sendStatus(400);
+      return;
+    }
+  } catch {
+    console.log("ERR missing params", req);
+    res.sendStatus(400);
+    return;
+  }
+
 
   try {
-    // Get Image from NFT
+    // ------------------------------------------------------------------
+    // Extract the image URL that we want to create a variation from
+
+    let imgUrlAtPath: string;
+
     const nft = await metaplex
       .nfts()
-      .findByMint({ mintAddress: new PublicKey(mint) });
-    const imageUrlResponse = await axios.get(nft.uri);
-    console.log(imageUrlResponse);
-    const oldImageUrl = imageUrlResponse.data.image;
+      .findByMint({ mintAddress: new PublicKey(nftAddress) });
 
-    const responseOldImage = await axios.get(oldImageUrl, {
+    const nftMetaData = nft.json;
+    if (!nftMetaData) {
+      console.log("No metadata in nft");
+      res.sendStatus(500);
+      return;
+    }
+    const nftCoverImageUrl: string = nftMetaData.image!;
+
+    let history: any = nftMetaData.properties!.history;
+    if (history) {
+      let children = history.rootImages;
+      let imageUrl: string = "";
+      // We return 400 at the top if length is less than one
+      for (let i = 0; i < indexPath.length; i++) {
+        let childKey = Object.keys(children)[indexPath[i]];
+        children = children[childKey];
+      }
+      imgUrlAtPath = imageUrl;
+    } else {
+      // TODO write this as new with the one new child
+      // history = {
+      //   "focusIndex": 0,
+      //   "visiblePath": [0],
+      //   "rootImages": {
+      //     // wtf JS wtf is this shit, you seriously want me to put brackets here you fucking ass clown
+      //     [nftCoverImageUrl]: {},
+      //   }
+      // };
+      let indexPathPointsToRoot = indexPath.length == 1 && indexPath[0] == 0;
+      if (!indexPathPointsToRoot) {
+        console.log("ERR no history yet, but index path does not point to root", indexPath);
+        res.sendStatus(400);
+        return;
+      }
+      imgUrlAtPath = nftCoverImageUrl;
+    }
+    console.log("Found imgUrlAtPath:", imgUrlAtPath);
+
+
+    // ------------------------------------------------------------------
+    // Get the actual image for the URL
+
+    const imgForImgUrlAtPath = (await axios.get(imgUrlAtPath, {
       responseType: "arraybuffer",
-    });
-    const buffer = Buffer.from(responseOldImage.data, "utf-8");
-    const oldImageFile: any = buffer;
-    oldImageFile.name = "image.png";
+    })).data;
+    const imgBuffer: any = Buffer.from(imgForImgUrlAtPath, "utf-8");
+    imgBuffer.name = "image.png";
 
-    //OPENAI Variation
+
+    // ------------------------------------------------------------------
+    // Create a variation for the image via OpenAi api
+
     const responseOpenAI = await openai.createImageVariation(
-      oldImageFile,
+      imgBuffer,
       1,
       "1024x1024"
     );
-    const newImageUrl = responseOpenAI.data.data[0].url;
+    const openAiImageUrl = responseOpenAI.data.data[0].url;
+    console.log("Received temporary variation url from OpenAi:", openAiImageUrl);
 
-    //Get Image and Convert to Metaplex File
-    let metaplexFile: MetaplexFile;
-
-    if (!newImageUrl) {
+    if (!openAiImageUrl) {
+      // TODO need to retry or refund the user
       res.sendStatus(500);
       return;
     }
 
-    const responseMetaPlex = await axios.get(newImageUrl, {
+
+    // ------------------------------------------------------------------
+    // Upload new variation as Metaplex File
+
+    const responseMetaPlex = await axios.get(openAiImageUrl, {
       responseType: "arraybuffer",
     });
-    metaplexFile = toMetaplexFile(responseMetaPlex.data, "image.jpg");
-    const metaplexImageUri = await metaplex.storage().upload(metaplexFile);
+    let metaplexFile: MetaplexFile = toMetaplexFile(responseMetaPlex.data, "image.jpg");
+    const metaplexImageUrl = await metaplex.storage().upload(metaplexFile);
 
-    console.log("Trying to upload the Metadata");
-    const oldAttributes = nft.json?.attributes || [{ value: "0" }];
+    console.log("Uploaded variation to permanent metaplex url:", metaplexImageUrl);
+
+
+    // ------------------------------------------------------------------
+    // Update the nft meta data
+
+    // get evolution attribute
+    const oldAttributes = nftMetaData?.attributes || [{ trait_type: "Evolution", value: "0" }];
     const oldEvolutionValue = Number(oldAttributes[0].value);
+    const newEvolutionValue = oldEvolutionValue + 1;
 
-    // History always includes the currently newest image as well
-    // if we generate the first variation we simply add the base image as the history
-    const oldHistory = (nft.json?.properties?.history as (Array<String> | null)) || [BASE_IMAGE_URL];
-    const oldImageUri = nft.json?.image;
+    // get history property or init if freshly minted
+    const oldHistory: any = (nftMetaData?.properties?.history ||
+    {
+      focusIndex: 0,
+      visiblePath: [0],
+      rootImages: {
+        // wtf JS wtf is this shit, you seriously want me to put brackets here you fucking ass clown
+        [nftCoverImageUrl]: {},
+      }
+    });
 
-    let newHistory;
-    if (oldHistory.length == oldEvolutionValue + 1) {
-      // This is the case if we simply progress in our evolution
-      newHistory = [
-        ...oldHistory,
-        metaplexImageUri,
-      ];
-    } else {
-      // This is the case if we have previously reset the image to a prior point
-      newHistory = [
-        ...oldHistory.slice(0, oldEvolutionValue + 1),
-        metaplexImageUri,
-      ];
+    // get the parent into which we want to insert the new child
+    let children = oldHistory.rootImages;
+    for (let i = 0; i < indexPath.length; i++) {
+      let childKey = Object.keys(children)[indexPath[i]];
+      children = children[childKey];
     }
+    children[metaplexImageUrl] = {};
+
+    console.log(Object.keys(children), "keys");
+    let lastIndexInParent = (Object.keys(children).length - 1);
+    console.log(lastIndexInParent, "lastIndexInParent");
+
+    // adjust the visible path and focus
+    let newVisiblePath = [...indexPath, lastIndexInParent];
+    let newFocusIndex = newVisiblePath.length - 1;
+
+    const newHistory = {
+      focusIndex: newFocusIndex,
+      visiblePath: newVisiblePath,
+      rootImages: oldHistory.rootImages, // Now includes new child
+    };
 
     const nftWithChangedMetaData = {
-      ...nft.json,
+      ...nftMetaData,
       attributes: [
         {
           trait_type: "Evolution",
-          value: `${oldEvolutionValue + 1}`,
+          value: `newEvolutionValue`,
         },
       ],
       properties: {
-        ...nft.json?.properties,
+        ...nftMetaData.properties,
         "history": newHistory,
       },
-      image: metaplexImageUri,
+      image: metaplexImageUrl,
     };
 
-    console.log(nftWithChangedMetaData, "nftWithChangedMetaData");
+    console.log(JSON.stringify(nftWithChangedMetaData), "nftWithChangedMetaData");
 
-    const { uri } = await metaplex.nfts().uploadMetadata(nftWithChangedMetaData);
+    const { uri: newNftMetaDataUrl } = await metaplex.nfts().uploadMetadata(nftWithChangedMetaData);
 
     await metaplex.nfts().update({
       nftOrSft: nft,
-      uri,
+      uri: newNftMetaDataUrl,
     });
 
     res.sendStatus(200);
