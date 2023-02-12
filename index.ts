@@ -199,9 +199,9 @@ app.post("/api/getImage", async function (req, res) {
       responseType: "arraybuffer",
     });
     let metaplexFile: MetaplexFile = toMetaplexFile(responseMetaPlex.data, "image.jpg");
-    const metaplexImageUrl = await metaplex.storage().upload(metaplexFile);
+    const newMetaplexImageUrl = await metaplex.storage().upload(metaplexFile);
 
-    console.log("Uploaded variation to permanent metaplex url:", metaplexImageUrl);
+    console.log("Uploaded variation to permanent metaplex url:", newMetaplexImageUrl);
 
 
     // ------------------------------------------------------------------
@@ -229,7 +229,7 @@ app.post("/api/getImage", async function (req, res) {
       let childKey = Object.keys(children)[indexPath[i]];
       children = children[childKey];
     }
-    children[metaplexImageUrl] = {};
+    children[newMetaplexImageUrl] = {};
 
     console.log(Object.keys(children), "keys");
     let lastIndexInParent = (Object.keys(children).length - 1);
@@ -255,9 +255,15 @@ app.post("/api/getImage", async function (req, res) {
       ],
       properties: {
         ...nftMetaData.properties,
+        "files": [
+          {
+            "uri": newMetaplexImageUrl,
+            "type": "image/png"
+          }
+        ],
         "history": newHistory,
       },
-      image: metaplexImageUrl,
+      image: newMetaplexImageUrl,
     };
 
     console.log(JSON.stringify(nftWithChangedMetaData), "nftWithChangedMetaData");
