@@ -250,7 +250,7 @@ app.post("/api/getImage", async function (req, res) {
       attributes: [
         {
           trait_type: "Evolution",
-          value: `newEvolutionValue`,
+          value: newEvolutionValue.toString(),
         },
       ],
       properties: {
