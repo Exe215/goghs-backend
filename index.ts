@@ -9,10 +9,17 @@ import { clusterApiUrl, Connection, Keypair, PublicKey } from "@solana/web3.js";
 import axios from "axios";
 import cors from "cors";
 import express from "express";
-//import fetch from "node-fetch";
 import { Configuration, OpenAIApi } from "openai";
 import path from "path";
 import secret from "./devnet.json";
+import {
+  dateToString,
+  ExtendedJsonMetadata,
+  getVariationAtPath,
+  IndexPath,
+  indexPathEqual,
+  NftHistory,
+} from "./types";
 
 const BASE_IMAGE_URL =
   "https://arweave.net/I2dvS-utEDRcvfzRyUFls3SFP-3MkAfb_RFamxnIeSw?ext=png";
@@ -81,13 +88,12 @@ app.post("/api/setCover", async function (req, res) {
     return;
   }
 
-
   try {
     const nft = await metaplex
       .nfts()
       .findByMint({ mintAddress: new PublicKey(nftAddress) });
 
-    const nftMetaData = nft.json;
+    const nftMetaData = nft.json as ExtendedJsonMetadata;
     if (!nftMetaData) {
       console.log("No metadata in nft");
       res.sendStatus(500);
@@ -98,20 +104,17 @@ app.post("/api/setCover", async function (req, res) {
     // Check if the path is valid
 
     let imgUrlAtPath;
-    let history: any = nftMetaData.properties!.history;
+    let history = nftMetaData.properties.history;
     if (history) {
-      let children = history.rootImages;
-      let imageUrl: string = "";
       // We return 400 at the top if length is less than one
-      for (let i = 0; i < indexPath.length; i++) {
-        let childKey = Object.keys(children)[indexPath[i]];
-        children = children[childKey];
-      }
-      imgUrlAtPath = imageUrl;
+      imgUrlAtPath = getVariationAtPath(history, indexPath)!.url;
     } else {
       // if the metadata does not have the history prop,
       // it is a freshly minted one and does not need to be set
-      console.log("ERR no history yet; does not make sense to request a cover set", indexPath);
+      console.log(
+        "ERR no history yet; does not make sense to request a cover set",
+        indexPath
+      );
       res.sendStatus(400);
       return;
     }
@@ -119,11 +122,6 @@ app.post("/api/setCover", async function (req, res) {
 
     // ------------------------------------------------------------------
     // Update the nft meta data
-
-    // get evolution attribute
-    const oldAttributes = nftMetaData?.attributes || [{ trait_type: "Evolution", value: "0" }];
-    const oldEvolutionValue = Number(oldAttributes[0].value);
-    const newEvolutionValue = oldEvolutionValue + 1;
 
     // get history property or init if freshly minted
     const oldHistory: any = nftMetaData!.properties!.history;
@@ -135,33 +133,33 @@ app.post("/api/setCover", async function (req, res) {
     const newHistory = {
       focusIndex: newFocusIndex,
       visiblePath: newVisiblePath,
-      rootImages: oldHistory.rootImages, // Unchanged
+      favorites: oldHistory.favorites,
+      baseImages: oldHistory.baseImages, // Unchanged
     };
 
     const nftWithChangedMetaData = {
       ...nftMetaData,
-      attributes: [
-        {
-          trait_type: "Evolution",
-          value: newEvolutionValue.toString(),
-        },
-      ],
       properties: {
         ...nftMetaData.properties,
-        "files": [
+        files: [
           {
-            "uri": imgUrlAtPath,
-            "type": "image/png"
-          }
+            uri: imgUrlAtPath,
+            type: "image/png",
+          },
         ],
-        "history": newHistory,
+        history: newHistory,
       },
       image: imgUrlAtPath,
     };
 
-    console.log(JSON.stringify(nftWithChangedMetaData), "nftWithChangedMetaData");
+    console.log(
+      JSON.stringify(nftWithChangedMetaData),
+      "nftWithChangedMetaData"
+    );
 
-    const { uri: newNftMetaDataUrl } = await metaplex.nfts().uploadMetadata(nftWithChangedMetaData);
+    const { uri: newNftMetaDataUrl } = await metaplex
+      .nfts()
+      .uploadMetadata(nftWithChangedMetaData);
 
     await metaplex.nfts().update({
       nftOrSft: nft,
@@ -174,7 +172,6 @@ app.post("/api/setCover", async function (req, res) {
     res.sendStatus(500);
   }
 });
-
 
 // TODO add transaction ID for payment check !!!!!!!!!!!!!!!!!!!!!!!!!!!
 /// Parameters:
@@ -209,7 +206,6 @@ app.post("/api/variation", async function (req, res) {
     return;
   }
 
-
   try {
     // ------------------------------------------------------------------
     // Extract the image URL that we want to create a variation from
@@ -220,7 +216,7 @@ app.post("/api/variation", async function (req, res) {
       .nfts()
       .findByMint({ mintAddress: new PublicKey(nftAddress) });
 
-    const nftMetaData = nft.json;
+    const nftMetaData = nft.json as ExtendedJsonMetadata;
     if (!nftMetaData) {
       console.log("No metadata in nft");
       res.sendStatus(500);
@@ -228,20 +224,17 @@ app.post("/api/variation", async function (req, res) {
     }
     const nftCoverImageUrl: string = nftMetaData.image!;
 
-    let history: any = nftMetaData.properties!.history;
+    let history: NftHistory = nftMetaData.properties.history;
     if (history) {
-      let children = history.rootImages;
-      let imageUrl: string = "";
-      // We return 400 at the top if length is less than one
-      for (let i = 0; i < indexPath.length; i++) {
-        let childKey = Object.keys(children)[indexPath[i]];
-        children = children[childKey];
-      }
-      imgUrlAtPath = imageUrl;
+      // index path cannot be empty here
+      imgUrlAtPath = getVariationAtPath(history, indexPath)!.url;
     } else {
-      let indexPathPointsToRoot = indexPath.length == 1 && indexPath[0] == 0;
+      let indexPathPointsToRoot = indexPath.length === 1 && indexPath[0] === 0;
       if (!indexPathPointsToRoot) {
-        console.log("ERR no history yet, but index path does not point to root", indexPath);
+        console.log(
+          "ERR no history yet, but index path does not point to root",
+          indexPath
+        );
         res.sendStatus(400);
         return;
       }
@@ -249,16 +242,16 @@ app.post("/api/variation", async function (req, res) {
     }
     console.log("Found imgUrlAtPath:", imgUrlAtPath);
 
-
     // ------------------------------------------------------------------
     // Get the actual image for the URL
 
-    const imgForImgUrlAtPath = (await axios.get(imgUrlAtPath, {
-      responseType: "arraybuffer",
-    })).data;
+    const imgForImgUrlAtPath = (
+      await axios.get(imgUrlAtPath, {
+        responseType: "arraybuffer",
+      })
+    ).data;
     const imgBuffer: any = Buffer.from(imgForImgUrlAtPath, "utf-8");
     imgBuffer.name = "image.png";
-
 
     // ------------------------------------------------------------------
     // Create a variation for the image via OpenAi api
@@ -269,7 +262,10 @@ app.post("/api/variation", async function (req, res) {
       "1024x1024"
     );
     const openAiImageUrl = responseOpenAI.data.data[0].url;
-    console.log("Received temporary variation url from OpenAi:", openAiImageUrl);
+    console.log(
+      "Received temporary variation url from OpenAi:",
+      openAiImageUrl
+    );
 
     if (!openAiImageUrl) {
       // TODO need to retry or refund the user
@@ -277,48 +273,54 @@ app.post("/api/variation", async function (req, res) {
       return;
     }
 
-
     // ------------------------------------------------------------------
     // Upload new variation as Metaplex File
 
     const responseMetaPlex = await axios.get(openAiImageUrl, {
       responseType: "arraybuffer",
     });
-    let metaplexFile: MetaplexFile = toMetaplexFile(responseMetaPlex.data, "image.jpg");
+    let metaplexFile: MetaplexFile = toMetaplexFile(
+      responseMetaPlex.data,
+      "image.jpg"
+    );
     const newMetaplexImageUrl = await metaplex.storage().upload(metaplexFile);
 
-    console.log("Uploaded variation to permanent metaplex url:", newMetaplexImageUrl);
-
+    console.log(
+      "Uploaded variation to permanent metaplex url:",
+      newMetaplexImageUrl
+    );
 
     // ------------------------------------------------------------------
     // Update the nft meta data
 
     // get evolution attribute
-    const oldAttributes = nftMetaData?.attributes || [{ trait_type: "Evolution", value: "0" }];
+    const oldAttributes = nftMetaData?.attributes || [
+      { trait_type: "Evolution", value: "0" },
+    ];
     const oldEvolutionValue = Number(oldAttributes[0].value);
     const newEvolutionValue = oldEvolutionValue + 1;
 
     // get history property or init if freshly minted
-    const oldHistory: any = (nftMetaData?.properties?.history ||
-    {
+    const currentDate = dateToString(new Date());
+    const oldHistory = nftMetaData?.properties?.history || {
       focusIndex: 0,
       visiblePath: [0],
-      rootImages: {
-        // wtf JS wtf is this shit, you seriously want me to put brackets here you fucking ass clown
-        [nftCoverImageUrl]: {},
-      }
-    });
+      favorites: [],
+      baseImages: [
+        /// TODO: we should initialize this at mint instead
+        { url: nftCoverImageUrl, created: currentDate, variations: [] },
+      ],
+    };
 
     // get the parent into which we want to insert the new child
-    let children = oldHistory.rootImages;
-    for (let i = 0; i < indexPath.length; i++) {
-      let childKey = Object.keys(children)[indexPath[i]];
-      children = children[childKey];
-    }
-    children[newMetaplexImageUrl] = {};
+    const parent = getVariationAtPath(oldHistory, indexPath)!;
+    parent.variations.push({
+      url: newMetaplexImageUrl,
+      created: currentDate,
+      variations: [],
+    });
 
-    console.log(Object.keys(children), "keys");
-    let lastIndexInParent = (Object.keys(children).length - 1);
+    let lastIndexInParent = parent.variations.length - 1;
     console.log(lastIndexInParent, "lastIndexInParent");
 
     // adjust the visible path and focus
@@ -328,7 +330,8 @@ app.post("/api/variation", async function (req, res) {
     const newHistory = {
       focusIndex: newFocusIndex,
       visiblePath: newVisiblePath,
-      rootImages: oldHistory.rootImages, // Now includes new child
+      favorites: oldHistory.favorites,
+      baseImages: oldHistory.baseImages, // Now includes new child
     };
 
     const nftWithChangedMetaData = {
@@ -341,20 +344,25 @@ app.post("/api/variation", async function (req, res) {
       ],
       properties: {
         ...nftMetaData.properties,
-        "files": [
+        files: [
           {
-            "uri": newMetaplexImageUrl,
-            "type": "image/png"
-          }
+            uri: newMetaplexImageUrl,
+            type: "image/png",
+          },
         ],
-        "history": newHistory,
+        history: newHistory,
       },
       image: newMetaplexImageUrl,
     };
 
-    console.log(JSON.stringify(nftWithChangedMetaData), "nftWithChangedMetaData");
+    console.log(
+      JSON.stringify(nftWithChangedMetaData),
+      "nftWithChangedMetaData"
+    );
 
-    const { uri: newNftMetaDataUrl } = await metaplex.nfts().uploadMetadata(nftWithChangedMetaData);
+    const { uri: newNftMetaDataUrl } = await metaplex
+      .nfts()
+      .uploadMetadata(nftWithChangedMetaData);
 
     await metaplex.nfts().update({
       nftOrSft: nft,
@@ -368,4 +376,103 @@ app.post("/api/variation", async function (req, res) {
   }
 });
 
+app.post("/api/toggleFavorite", async function (req, res) {
+  console.log("================================");
+  console.log("/api/toggleFavorite");
 
+  // ------------------------------------------------------------------
+  // Check parameters
+
+  let nftAddress: string;
+  let indexPath: IndexPath;
+  try {
+    nftAddress = req.body.nft_address;
+    indexPath = req.body.index_path;
+    if (indexPath.length < 1) {
+      console.log("ERR empty index path");
+      res.sendStatus(400);
+      return;
+    }
+  } catch {
+    console.log("ERR missing params", req);
+    res.sendStatus(400);
+    return;
+  }
+
+  try {
+    const nft = await metaplex
+      .nfts()
+      .findByMint({ mintAddress: new PublicKey(nftAddress) });
+
+    const nftMetaData = nft.json as ExtendedJsonMetadata;
+    if (!nftMetaData) {
+      console.log("No metadata in nft");
+      res.sendStatus(500);
+      return;
+    }
+
+    // ------------------------------------------------------------------
+    // Check if the path is valid
+
+    let imgUrlAtPath;
+    let history = nftMetaData.properties.history;
+    if (history) {
+      // We return 400 at the top if length is less than one
+      try {
+        imgUrlAtPath = getVariationAtPath(history, indexPath)!.url;
+      } catch (e) {
+        console.log("Index path does not exist");
+        res.sendStatus(400);
+        return;
+      }
+    } else {
+      // TODO: this will never happen if we initialize history at mint
+      console.log("History is not available");
+      res.sendStatus(400);
+      return;
+    }
+
+    // ------------------------------------------------------------------
+    // Remove or add indexPath to favorites
+
+    const existingIndex = history.favorites.findIndex((favorite) =>
+      indexPathEqual(favorite, indexPath)
+    );
+
+    if (existingIndex === -1) {
+      history.favorites.push(indexPath);
+    } else {
+      history.favorites.splice(existingIndex, 1);
+    }
+
+    // ------------------------------------------------------------------
+    // Update metadata
+
+    const nftWithChangedMetaData = {
+      ...nftMetaData,
+      properties: {
+        ...nftMetaData.properties,
+        history, // modified the old history
+      },
+    };
+
+    console.log(
+      JSON.stringify(nftWithChangedMetaData),
+      "nftWithChangedMetaData"
+    );
+
+    const { uri: newNftMetaDataUrl } = await metaplex
+      .nfts()
+      .uploadMetadata(nftWithChangedMetaData);
+
+    await metaplex.nfts().update({
+      nftOrSft: nft,
+      uri: newNftMetaDataUrl,
+    });
+
+    res.sendStatus(200);
+  } catch (e) {
+    console.log(e);
+    res.sendStatus(500);
+  }
+});
