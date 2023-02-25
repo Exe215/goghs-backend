@@ -23,9 +23,7 @@ export function dateToString(date: Date): string {
   const hour = utcString.substring(11, 13);
   const minute = utcString.substring(14, 16);
   const second = utcString.substring(17, 19);
-  console.log(utcString, "test");
   const formattedString = `${year}-${month}-${day} ${hour}:${minute}.${second}`;
-  console.log(formattedString, "tttt");
   return formattedString;
 }
 
