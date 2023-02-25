@@ -12,14 +12,8 @@ import express from "express";
 import { Configuration, OpenAIApi } from "openai";
 import path from "path";
 import secret from "./devnet.json";
-import {
-  dateToString,
-  ExtendedJsonMetadata,
-  getVariationAtPath,
-  IndexPath,
-  indexPathEqual,
-  NftHistory,
-} from "./types";
+import { ExtendedJsonMetadata, IndexPath, NftHistory } from "./types";
+import { dateToString, getVariationAtPath, indexPathEqual } from "./helper";
 
 const configuration = new Configuration({
   apiKey: "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",
