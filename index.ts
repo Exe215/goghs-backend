@@ -2,7 +2,6 @@ import {
   bundlrStorage,
   keypairIdentity,
   Metaplex,
-  MetaplexFile,
   toMetaplexFile,
 } from "@metaplex-foundation/js";
 import { clusterApiUrl, Connection, Keypair, PublicKey } from "@solana/web3.js";
