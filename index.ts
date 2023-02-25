@@ -468,3 +468,4 @@ app.post("/api/toggleFavorite", async function (req, res) {
     res.sendStatus(500);
   }
 });
+export default app;

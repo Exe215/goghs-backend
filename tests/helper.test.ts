@@ -1,6 +1,5 @@
 import assert from "assert";
-import { dateToString, getVariationAtPath, indexPathEqual } from "./helper";
-import { IndexPath } from "./types";
+import { dateToString, getVariationAtPath, indexPathEqual } from "../helper";
 
 describe("indexPathEqual", () => {
   it("should return true for identical index paths", function () {
