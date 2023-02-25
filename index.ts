@@ -21,9 +21,6 @@ import {
   NftHistory,
 } from "./types";
 
-const BASE_IMAGE_URL =
-  "https://arweave.net/I2dvS-utEDRcvfzRyUFls3SFP-3MkAfb_RFamxnIeSw?ext=png";
-
 const configuration = new Configuration({
   apiKey: "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",
 });
@@ -93,7 +90,7 @@ app.post("/api/setCover", async function (req, res) {
       .nfts()
       .findByMint({ mintAddress: new PublicKey(nftAddress) });
 
-    const nftMetaData = nft.json as ExtendedJsonMetadata;
+    const nftMetaData = (await axios.get(nft.uri)).data as ExtendedJsonMetadata;
     if (!nftMetaData) {
       console.log("No metadata in nft");
       res.sendStatus(500);
@@ -216,7 +213,9 @@ app.post("/api/variation", async function (req, res) {
       .nfts()
       .findByMint({ mintAddress: new PublicKey(nftAddress) });
 
-    const nftMetaData = nft.json as ExtendedJsonMetadata;
+    // TODO: handle if data not available
+    const nftMetaData = (await axios.get(nft.uri)).data as ExtendedJsonMetadata;
+
     if (!nftMetaData) {
       console.log("No metadata in nft");
       res.sendStatus(500);
@@ -279,10 +278,9 @@ app.post("/api/variation", async function (req, res) {
     const responseMetaPlex = await axios.get(openAiImageUrl, {
       responseType: "arraybuffer",
     });
-    let metaplexFile: MetaplexFile = toMetaplexFile(
-      responseMetaPlex.data,
-      "image.jpg"
-    );
+
+    let metaplexFile = toMetaplexFile(responseMetaPlex.data, "image.jpg");
+
     const newMetaplexImageUrl = await metaplex.storage().upload(metaplexFile);
 
     console.log(
@@ -404,7 +402,7 @@ app.post("/api/toggleFavorite", async function (req, res) {
       .nfts()
       .findByMint({ mintAddress: new PublicKey(nftAddress) });
 
-    const nftMetaData = nft.json as ExtendedJsonMetadata;
+    const nftMetaData = (await axios.get(nft.uri)).data as ExtendedJsonMetadata;
     if (!nftMetaData) {
       console.log("No metadata in nft");
       res.sendStatus(500);
