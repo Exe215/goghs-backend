@@ -2,4 +2,6 @@
 
 install with `npm i` in root
 
-run with `node index.js` (no hotreload, need to restart on change)
+run with `npm run dev` to start the app with nodemon
+
+pre-commit hook triggers `npm test`

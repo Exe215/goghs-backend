@@ -1,23 +1,23 @@
-import assert from "assert";
+import { expect } from "chai";
 import { dateToString, getVariationAtPath, indexPathEqual } from "../helper";
 
 describe("indexPathEqual", () => {
   it("should return true for identical index paths", function () {
     const a = [1, 2, 3];
     const b = [1, 2, 3];
-    assert.equal(indexPathEqual(a, b), true);
+    expect(indexPathEqual(a, b)).to.equal(true);
   });
 
   it("should return false for different index paths", function () {
     const a = [1, 2, 3];
     const b = [1, 2, 4];
-    assert.equal(indexPathEqual(a, b), false);
+    expect(indexPathEqual(a, b)).to.equal(false);
   });
 
   it("should return false for index paths of different lengths", function () {
     const a = [1, 2, 3];
     const b = [1, 2];
-    assert.equal(indexPathEqual(a, b), false);
+    expect(indexPathEqual(a, b)).to.equal(false);
   });
 });
 
@@ -55,14 +55,13 @@ describe("getVariationAtPath", () => {
   it("should get the variation path", () => {
     const indexPath = [0, 1, 0];
     const variationPath = getVariationAtPath(mockHistory, indexPath);
-    assert.equal(
-      variationPath?.url,
+    expect(variationPath?.url).to.equal(
       "https://arweave.net/A6dnpaTswrdS8kt5P13k0dQga_4EaR1c722AWmtu9_A"
     );
   });
 
   it("should return null if index path is undefined", () => {
-    assert.equal(getVariationAtPath(mockHistory, undefined as any), null);
+    expect(getVariationAtPath(mockHistory, undefined as any)).to.be.null;
   });
 });
 
@@ -70,6 +69,6 @@ describe("dateToString", () => {
   it("should return date as formatted string <yyyy-mm-dd hh:mm.ss>", () => {
     const GOGHS_BIRTHDAY = "1853-03-30T11:00:00.000Z";
     const date = new Date(GOGHS_BIRTHDAY);
-    assert.equal(dateToString(date), "1853-03-30 11:00.00");
+    expect(dateToString(date)).to.equal("1853-03-30 11:00.00");
   });
 });
