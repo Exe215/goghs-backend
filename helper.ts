@@ -14,6 +14,11 @@ import {
 import axios from "axios";
 import { OpenAIApi } from "openai";
 
+/**
+ * Get a reference to the variation at the given [indexPath].
+ * Returns null if there indexPath is out of bounce
+ * for the given history object
+ */
 export function getVariationAtPath(
   history: NftHistory,
   indexPath: IndexPath
@@ -29,6 +34,10 @@ export function getVariationAtPath(
   return current;
 }
 
+/**
+ * Convert a JS [Date] to a string "yyyy-mm-dd hh:mm.ss"
+ * E.g. "1853-03-30 11:00.00"
+ */
 export function dateToString(date: Date): string {
   const utcString = date.toISOString();
   const year = utcString.substring(0, 4);
@@ -41,6 +50,10 @@ export function dateToString(date: Date): string {
   return formattedString;
 }
 
+/**
+ * Deep comparison of two indexPaths
+ * Checks also that the indexPaths are not empty.
+ */
 export function indexPathEqual(a: IndexPath, b: IndexPath): boolean {
   if (a === b) return true;
   if (a == null || b == null) return false;
@@ -52,6 +65,11 @@ export function indexPathEqual(a: IndexPath, b: IndexPath): boolean {
   return true;
 }
 
+/**
+ * Derives and returns the addresses of:
+ * - Receipt PDA: Holds instruction data for the nft modification
+ * - Credit PDA: Holds the count for the free credits
+ */
 export function getProgramAccounts(
   nftAddress: PublicKey,
   userAddress: PublicKey,
@@ -75,6 +93,10 @@ export function getProgramAccounts(
   };
 }
 
+/**
+ * Fetch and return the data of [receiptPda]
+ * Throws an error if the indexPath is empty
+ */
 export async function getReceiptData(
   receiptPda: PublicKey,
   program: Program<GoghsProgram>
@@ -383,6 +405,82 @@ export async function createImageVariationAndUpdateNft(
   );
 
   await updateNftWithNewMetadata(metaplex, nftAddress, nftWithChangedMetaData);
+}
+
+/**
+ * Sets image and files attribute to new url in metadata
+ * Sets visiblePath to indexPath
+ * Sets focusIndex to cover position
+ *
+ * @returns Updated metadata
+ */
+export async function setNewCoverImage(
+  nftMetaData: ExtendedJsonMetadata,
+  indexPath: IndexPath,
+  newUrl: string
+) {
+  // get history property
+  const oldHistory: any = nftMetaData!.properties!.history;
+
+  // adjust the visible path and focus
+  let newVisiblePath = indexPath;
+  let newFocusIndex = newVisiblePath.length - 1;
+
+  const newHistory = {
+    focusIndex: newFocusIndex,
+    visiblePath: newVisiblePath,
+    favorites: oldHistory.favorites,
+    baseImages: oldHistory.baseImages, // Unchanged
+  };
+
+  const nftWithChangedMetaData = {
+    ...nftMetaData,
+    properties: {
+      ...nftMetaData.properties,
+      files: [
+        {
+          uri: newUrl,
+          type: "image/png",
+        },
+      ],
+      history: newHistory,
+    },
+    image: newUrl,
+  };
+
+  console.log(JSON.stringify(nftWithChangedMetaData), "nftWithChangedMetaData");
+
+  return nftWithChangedMetaData;
+}
+
+export async function setNewCoverImageAndUpdateNft(
+  nftAddress: PublicKey,
+  userAddress: PublicKey,
+  programId: PublicKey,
+  program: Program<GoghsProgram>,
+  metaplex: Metaplex
+) {
+  const nftMetaData = await getMetadataFromNftMintAddress(nftAddress, metaplex);
+
+  const { receiptPda } = getProgramAccounts(nftAddress, userAddress, programId);
+
+  const { receiptIndexPath: indexPath } = await getReceiptData(
+    receiptPda,
+    program
+  );
+
+  const imgUrlAtPath = await getImageAtPath(metaplex, nftAddress, indexPath);
+
+  const metadataWithNewCoverImage = await setNewCoverImage(
+    nftMetaData,
+    indexPath,
+    imgUrlAtPath
+  );
+  await updateNftWithNewMetadata(
+    metaplex,
+    nftAddress,
+    metadataWithNewCoverImage
+  );
 }
 
 export async function closeReceiptAccount(
