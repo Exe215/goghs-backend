@@ -96,76 +96,78 @@ export function getProgramAccounts(
 
 /**
  * Fetch and return the data of [receiptPda]
- * Throws an error if the indexPath is empty
+ * Throws an error if the indexPath is empty or not of type [Array]
  */
 export async function getReceiptData(
   receiptPda: PublicKey,
   program: Program<GoghsProgram>
 ): Promise<ReceiptData> {
-  try {
-    // Retrieve the varation instruction from the receipt account
-    const receiptState = await program.account.receiptState.fetch(receiptPda);
-    const receiptIndexPath = receiptState.indexPath;
-    const inProgress = receiptState.inProgress;
-    const receiptTimestamp = receiptState.time.toNumber();
-    const paymentType = receiptState.paymentType;
+  // Retrieve the varation instruction from the receipt account
+  const receiptState = await program.account.receiptState.fetch(receiptPda);
+  const receiptIndexPath = receiptState.indexPath;
+  const inProgress = receiptState.inProgress;
+  const receiptTimestamp = receiptState.time.toNumber();
+  const paymentType = receiptState.paymentType;
 
-    if (receiptIndexPath.length < 1 || !Array.isArray(receiptIndexPath)) {
-      throw new Error("IndexPath not valid");
-    }
-
-    return {
-      receiptIndexPath,
-      receiptTimestamp,
-      inProgress,
-      paymentType,
-    };
-  } catch (e) {
-    throw e;
+  if (receiptIndexPath.length < 1 || !Array.isArray(receiptIndexPath)) {
+    throw new Error("IndexPath not valid");
   }
+
+  return {
+    receiptIndexPath,
+    receiptTimestamp,
+    inProgress,
+    paymentType,
+  };
 }
 
+/**
+ * Retrieve image url of variation at [indexPath].
+ *
+ * Validates [indexPath] is valid for the history of nft.
+ * Throws an error if out index is out of bounce
+ */
 export async function getImageAtPath(
   metaplex: Metaplex,
   nftAddress: PublicKey,
   indexPath: IndexPath
 ): Promise<string> {
-  try {
-    let imgUrlAtPath: string;
+  let imgUrlAtPath: string;
 
-    const nftMetaData = await getMetadataFromNftMintAddress(
-      nftAddress,
-      metaplex
-    );
+  const nftMetaData = await getMetadataFromNftMintAddress(nftAddress, metaplex);
 
-    // Image cannot be null here
-    const nftCoverImageUrl: string = nftMetaData.image!;
-
-    let history: NftHistory = nftMetaData.properties.history;
-    if (history) {
-      // IndexPath cannot be empty here
-      const variationAtPath = getVariationAtPath(history, indexPath);
-      if (!variationAtPath) {
-        throw new Error("No entry in history for given indexPath");
-      }
-      imgUrlAtPath = variationAtPath.url;
-    } else {
-      // Case: no history yet -> index must point to root
-      let indexPathPointsToRoot = indexPath.length === 1 && indexPath[0] === 0;
-      if (!indexPathPointsToRoot) {
-        throw new Error(
-          "History is empty but indexPath does not point to root"
-        );
-      }
-      imgUrlAtPath = nftCoverImageUrl;
-    }
-    console.log("Found imgUrlAtPath:", imgUrlAtPath);
-    return imgUrlAtPath;
-  } catch (e) {
-    throw e;
+  if (!nftMetaData.image) {
+    throw new Error("");
   }
+
+  const nftCoverImageUrl: string = nftMetaData.image;
+
+  let history: NftHistory = nftMetaData.properties.history;
+  if (history) {
+    // IndexPath cannot be empty here
+    const variationAtPath = getVariationAtPath(history, indexPath);
+    if (!variationAtPath) {
+      throw new Error("No entry in history for given indexPath");
+    }
+    imgUrlAtPath = variationAtPath.url;
+  } else {
+    // Case: no history yet -> index must point to root
+    let indexPathPointsToRoot = indexPath.length === 1 && indexPath[0] === 0;
+    if (!indexPathPointsToRoot) {
+      throw new Error("History is empty but indexPath does not point to root");
+    }
+    imgUrlAtPath = nftCoverImageUrl;
+  }
+  console.log("Found imgUrlAtPath:", imgUrlAtPath);
+  return imgUrlAtPath;
 }
 
+/**
+ * Returns a [Buffer] from an image url
+ * Adds the [name] attribute to buffer.
+ *
+ * Type defined as File because Metaplex upload expects it
+ */
 export async function getImageBufferFromUrl(
   url: string,
   name: string
@@ -180,6 +182,14 @@ export async function getImageBufferFromUrl(
   return imgBuffer;
 }
 
+/**
+ * Fetches metadata for an nft.
+ *
+ * Checks if the [image] property is defined.
+ * Casts metadata to [ExtendedJsonMetadata] - (Metadata + History).
+ *
+ * @returns Metadata object of Nft
+ */
 export async function getMetadataFromNftMintAddress(
   nftAddress: PublicKey,
   metaplex: Metaplex
@@ -195,33 +205,35 @@ export async function getMetadataFromNftMintAddress(
   return nftMetaData;
 }
 
+/**
+ * @returns New DALLE variation of an image as link.
+ */
 export async function getOpenAiVariation(
   imageBuffer: File,
   openai: OpenAIApi
 ): Promise<string> {
-  try {
-    const responseOpenAI = await openai.createImageVariation(
-      imageBuffer,
-      1,
-      "1024x1024"
-    );
+  const responseOpenAI = await openai.createImageVariation(
+    imageBuffer,
+    1,
+    "1024x1024"
+  );
 
-    const openAiImageUrl = responseOpenAI.data.data[0].url;
-    console.log(
-      "Received temporary variation url from OpenAi:",
-      openAiImageUrl
-    );
+  const openAiImageUrl = responseOpenAI.data.data[0].url;
+  console.log("Received temporary variation url from OpenAi:", openAiImageUrl);
 
-    if (!openAiImageUrl) {
-      throw new Error("OpenAI Imageurl undefined");
-    }
-
-    return openAiImageUrl;
-  } catch (e) {
-    throw e;
+  if (!openAiImageUrl) {
+    throw new Error("OpenAI Imageurl undefined");
   }
+
+  return openAiImageUrl;
 }
 
+/**
+ *  Creates MetaplexFile.
+ *  Uploads it to chosen metaplex storage provider
+ *
+ *  @returns Link to uploaded file
+ */
 export async function uploadFileToMetaplex(
   url: string,
   metaplex: Metaplex
@@ -315,6 +327,11 @@ export function getMetadataWithNewVariation(
   return nftWithChangedMetaData;
 }
 
+/**
+ * Fetches nft by mint
+ * Uploads a new metadata file to metaplex
+ * Updates nft with new metadata file
+ */
 export async function updateNftWithNewMetadata(
   metaplex: Metaplex,
   nftAddress: PublicKey,
@@ -332,6 +349,11 @@ export async function updateNftWithNewMetadata(
   });
 }
 
+/**
+ * Derive receipt PDA.
+ * Return error if receipt is already in progress.
+ * Toggle progess indicator on receipt PDA.
+ */
 export async function startProcessOnReceipt(
   nftAddress: PublicKey,
   userAddress: PublicKey,
@@ -339,38 +361,37 @@ export async function startProcessOnReceipt(
   program: Program<GoghsProgram>,
   signerWallet: Keypair
 ) {
-  try {
-    const { receiptPda } = getProgramAccounts(
-      nftAddress,
-      userAddress,
-      programId
-    );
+  const { receiptPda } = getProgramAccounts(nftAddress, userAddress, programId);
 
-    // Retrieve receipt account data
-    // Throws error if index is no array or empty
-    const { inProgress } = await getReceiptData(receiptPda, program);
+  // Retrieve receipt account data
+  // Throws error if index is no array or empty
+  const { inProgress } = await getReceiptData(receiptPda, program);
 
-    // Don't handle another request
-    if (inProgress) {
-      throw new AlreadyInProgressError("Receipt process already started");
-    }
-
-    // Set inProgress to true on receipt pda
-    await program.methods
-      .startProcess()
-      .accounts({
-        receipt: receiptPda,
-        backend: signerWallet.publicKey,
-        user: userAddress,
-        nftMint: nftAddress,
-      })
-      .signers([signerWallet])
-      .rpc();
-  } catch (e) {
-    throw e;
+  // Don't handle another request
+  if (inProgress) {
+    throw new AlreadyInProgressError("Receipt process already started");
   }
+
+  // Set inProgress to true on receipt pda
+  await program.methods
+    .startProcess()
+    .accounts({
+      receipt: receiptPda,
+      backend: signerWallet.publicKey,
+      user: userAddress,
+      nftMint: nftAddress,
+    })
+    .signers([signerWallet])
+    .rpc();
 }
 
+/**
+ * - Fetch data from receipt PDA to get [indexPath]
+ * - Get image url at [indexPath] from nft metadata [history]
+ * - Create new Variation with openAi
+ * - Add to history of metadata
+ * - Upload to metaplex and update the nft
+ */
 export async function createImageVariationAndUpdateNft(
   nftAddress: PublicKey,
   userAddress: PublicKey,
@@ -454,6 +475,9 @@ export async function setNewCoverImage(
   return nftWithChangedMetaData;
 }
 
+/**
+ * Toggle [indexpath] of certain variation in favorites array of history
+ */
 export async function toggleFavoriteOfVariation(
   nftAddress: PublicKey,
   indexPath: IndexPath,
@@ -484,6 +508,12 @@ export async function toggleFavoriteOfVariation(
   return nftWithChangedMetaData;
 }
 
+/**
+ * - Fetch data from receipt PDA to get [indexPath]
+ * - Get image url at [indexPath] from nft metadata [history]
+ * - Sets new image as [image] attribute on nft metadata
+ * - Upload new metadata to metaplex and update the nft
+ */
 export async function setNewCoverImageAndUpdateNft(
   nftAddress: PublicKey,
   userAddress: PublicKey,
@@ -514,6 +544,12 @@ export async function setNewCoverImageAndUpdateNft(
   );
 }
 
+/**
+ * - Fetch data from receipt PDA to get [indexPath]
+ * - Get [favorites] array from nft metadata [history]
+ * - Toggle existance of [indexPath] in [favorites] array in metadata
+ * - Upload new metadata to metaplex and update the nft
+ */
 export async function toggleFavoriteAndUpdateNft(
   nftAddress: PublicKey,
   userAddress: PublicKey,
@@ -543,8 +579,13 @@ export async function toggleFavoriteAndUpdateNft(
   await updateNftWithNewMetadata(metaplex, nftAddress, newMetadata);
 }
 
+/**
+ * Closes the receipt PDA account.
+ *
+ * @param canKeepMoney If this is false, the user will receive a refund.
+ */
 export async function closeReceiptAccount(
-  isSuccessful: boolean,
+  canKeepMoney: boolean,
   nftAddress: PublicKey,
   userAddress: PublicKey,
   programId: PublicKey,
@@ -558,7 +599,7 @@ export async function closeReceiptAccount(
   );
 
   const tx = await program.methods
-    .close(isSuccessful)
+    .close(canKeepMoney)
     .accounts({
       receipt: receiptPda,
       nftMint: nftAddress,
@@ -574,6 +615,16 @@ export async function closeReceiptAccount(
   );
 }
 
+/**
+ * Expected req.[params]
+ * - nft_address   § "2JJ...UcU"
+ * - index_path    § "3XJ...isJ"
+ *
+ * - Starts process on receipt PDA.
+ * - Modify and update Nft metadata.
+ * - Close receipt account afterwards.
+ * - Refunds user if the modification failed.
+ */
 export async function modifyNft(
   req: any,
   modification: Modification,
