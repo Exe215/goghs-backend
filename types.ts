@@ -42,3 +42,9 @@ export class AlreadyInProgressError extends Error {
     Object.setPrototypeOf(this, AlreadyInProgressError.prototype);
   }
 }
+
+export enum Modification {
+  Variation,
+  CoverChange,
+  ToggleFavorite,
+}

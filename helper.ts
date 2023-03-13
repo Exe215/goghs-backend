@@ -1,6 +1,8 @@
 import { Metaplex, toMetaplexFile } from "@metaplex-foundation/js";
 import { Program } from "@project-serum/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
+import axios from "axios";
+import { OpenAIApi } from "openai";
 import { GoghsProgram } from "./goghs_program";
 import {
   AccountData,
@@ -8,11 +10,10 @@ import {
   ExtendedJsonMetadata,
   ImageVariation,
   IndexPath,
+  Modification,
   NftHistory,
   ReceiptData,
 } from "./types";
-import axios from "axios";
-import { OpenAIApi } from "openai";
 
 /**
  * Get a reference to the variation at the given [indexPath].
@@ -66,7 +67,7 @@ export function indexPathEqual(a: IndexPath, b: IndexPath): boolean {
 }
 
 /**
- * Derives and returns the addresses of:
+ * Derives and returns the [PublicKey] of:
  * - Receipt PDA: Holds instruction data for the nft modification
  * - Credit PDA: Holds the count for the free credits
  */
@@ -241,7 +242,7 @@ export async function uploadFileToMetaplex(
   return newMetaplexImageUrl;
 }
 
-export function getUpdatedNftMetadata(
+export function getMetadataWithNewVariation(
   nftMetaData: ExtendedJsonMetadata,
   indexPath: IndexPath,
   newImageUrl: string
@@ -398,7 +399,7 @@ export async function createImageVariationAndUpdateNft(
 
   const metadata = await getMetadataFromNftMintAddress(nftAddress, metaplex);
 
-  const nftWithChangedMetaData = getUpdatedNftMetadata(
+  const nftWithChangedMetaData = getMetadataWithNewVariation(
     metadata,
     indexPath,
     newMetaplexImageUrl
@@ -453,6 +454,36 @@ export async function setNewCoverImage(
   return nftWithChangedMetaData;
 }
 
+export async function toggleFavoriteOfVariation(
+  nftAddress: PublicKey,
+  indexPath: IndexPath,
+  metaplex: Metaplex
+): Promise<ExtendedJsonMetadata> {
+  const nftMetaData = await getMetadataFromNftMintAddress(nftAddress, metaplex);
+
+  let history = nftMetaData.properties.history;
+
+  const existingIndex = history.favorites.findIndex((favorite) =>
+    indexPathEqual(favorite, indexPath)
+  );
+
+  if (existingIndex === -1) {
+    history.favorites.push(indexPath);
+  } else {
+    history.favorites.splice(existingIndex, 1);
+  }
+
+  const nftWithChangedMetaData = {
+    ...nftMetaData,
+    properties: {
+      ...nftMetaData.properties,
+      history, // modified the old history
+    },
+  };
+
+  return nftWithChangedMetaData;
+}
+
 export async function setNewCoverImageAndUpdateNft(
   nftAddress: PublicKey,
   userAddress: PublicKey,
@@ -481,6 +512,35 @@ export async function setNewCoverImageAndUpdateNft(
     nftAddress,
     metadataWithNewCoverImage
   );
+}
+
+export async function toggleFavoriteAndUpdateNft(
+  nftAddress: PublicKey,
+  userAddress: PublicKey,
+  programId: PublicKey,
+  program: Program<GoghsProgram>,
+  metaplex: Metaplex
+) {
+  const { receiptPda } = getProgramAccounts(nftAddress, userAddress, programId);
+
+  const { receiptIndexPath: indexPath } = await getReceiptData(
+    receiptPda,
+    program
+  );
+
+  // Check if the indexPath is valid for nft
+  // We don't need the uri here
+  await getImageAtPath(metaplex, nftAddress, indexPath);
+
+  const newMetadata = await toggleFavoriteOfVariation(
+    nftAddress,
+    indexPath,
+    metaplex
+  );
+
+  console.log(JSON.stringify(newMetadata), "nftWithChangedMetaData");
+
+  await updateNftWithNewMetadata(metaplex, nftAddress, newMetadata);
 }
 
 export async function closeReceiptAccount(
@@ -512,4 +572,112 @@ export async function closeReceiptAccount(
     "CLOSE Transaction",
     `https://explorer.solana.com/tx/${tx}?cluster=devnet`
   );
+}
+
+export async function modifyNft(
+  req: any,
+  modification: Modification,
+  programId: PublicKey,
+  signer: Keypair,
+  program: Program<GoghsProgram>,
+  metaplex: Metaplex,
+  openAi?: OpenAIApi
+) {
+  console.log("================================");
+  console.log("/api/toggleFavorite");
+
+  let canKeepMoney = false;
+
+  // -----------------------------------------------------------------
+  // Check parameters
+
+  if (!req.body.nft_address || !req.body.user_address) {
+    console.log("ERR Missing Params");
+    throw new Error("Missing Params");
+  }
+
+  const nftAddress = new PublicKey(req.body.nft_address);
+  const userAddress = new PublicKey(req.body.user_address);
+
+  // ------------------------------------------------------------------
+  // Set in_progress state true on receipt
+
+  try {
+    startProcessOnReceipt(nftAddress, userAddress, programId, program, signer);
+  } catch (e) {
+    if (e instanceof AlreadyInProgressError) {
+      throw e;
+    }
+    // TODO retry
+    try {
+      await closeReceiptAccount(
+        canKeepMoney,
+        nftAddress,
+        userAddress,
+        programId,
+        program,
+        signer
+      );
+    } catch (e) {
+      console.log("ERR closing receipt account failed", e);
+      throw new Error("closing receipt account failed");
+    }
+    console.log("ERR No receipt available", e);
+    throw new Error("receipt not available");
+  }
+
+  try {
+    switch (modification) {
+      case Modification.Variation:
+        if (!openAi) {
+          throw new Error("openAiApi not available");
+        }
+        await createImageVariationAndUpdateNft(
+          nftAddress,
+          userAddress,
+          programId,
+          program,
+          metaplex,
+          openAi
+        );
+        break;
+      case Modification.CoverChange:
+        await setNewCoverImageAndUpdateNft(
+          nftAddress,
+          userAddress,
+          programId,
+          program,
+          metaplex
+        );
+        break;
+      case Modification.ToggleFavorite:
+        await toggleFavoriteAndUpdateNft(
+          nftAddress,
+          userAddress,
+          programId,
+          program,
+          metaplex
+        );
+        break;
+      default:
+        break;
+    }
+  } catch (e) {
+    console.log(e);
+    throw new Error("Nft modification failed");
+  } finally {
+    try {
+      await closeReceiptAccount(
+        canKeepMoney,
+        nftAddress,
+        userAddress,
+        programId,
+        program,
+        signer
+      );
+    } catch (e) {
+      console.log("ERR closing receipt account failed", e);
+      throw e;
+    }
+  }
 }
