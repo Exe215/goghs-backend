@@ -1,5 +1,17 @@
+import { Program } from "@project-serum/anchor";
+import { PublicKey } from "@solana/web3.js";
+import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { expect } from "chai";
-import { dateToString, getVariationAtPath, indexPathEqual } from "../helper";
+import { GoghsProgram } from "../goghs_program";
+import {
+  dateToString,
+  getImageBufferFromUrl,
+  getProgramAccounts,
+  getReceiptData,
+  getVariationAtPath,
+  indexPathEqual,
+} from "../helper";
+import { ReceiptData } from "../types";
 
 describe("indexPathEqual", () => {
   it("should return true for identical index paths", function () {
@@ -70,5 +82,66 @@ describe("dateToString", () => {
     const GOGHS_BIRTHDAY = "1853-03-30T11:00:00.000Z";
     const date = new Date(GOGHS_BIRTHDAY);
     expect(dateToString(date)).to.equal("1853-03-30 11:00.00");
+  });
+});
+
+describe("getProgramAccounts", () => {
+  const nftAddress = new PublicKey(
+    "DCLMpevATuGRf5Z5SANVqiSnsmC8q7vL4a9vQRGDiAvy"
+  );
+  const userAddress = new PublicKey(
+    "C2roLLYGtyTbEs9V5576gqHN6zH8VnArT6vxoF9cfruu"
+  );
+  const programId = new PublicKey(
+    "3FuKunkB8zMpFeFKDycDNE7q9ir6Rr1JtE6Wve9vv9UY"
+  );
+
+  it("returns receipt and credits PDAs", () => {
+    const result = getProgramAccounts(nftAddress, userAddress, programId);
+    expect(result).to.be.an("object");
+    expect(result.receiptPda).to.be.an.instanceOf(PublicKey);
+    expect(result.creditsPda).to.be.an.instanceOf(PublicKey);
+  });
+
+  it("returns correct receipt PDA", () => {
+    const expectedReceiptPda = new PublicKey(
+      "d4MPcyU1ef5UT6uUzdzAM8DwH12e1wc5K543tEsZHhp"
+    );
+    const result = getProgramAccounts(nftAddress, userAddress, programId);
+    expect(result.receiptPda.toString()).to.equal(
+      expectedReceiptPda.toString()
+    );
+  });
+
+  it("returns correct credits PDA", () => {
+    const expectedCreditsPda = new PublicKey(
+      "CvZGXjXtaNWokpUMhKNgk2ds8YqHpgbDRNhzFBi9SjPb"
+    );
+    const result = getProgramAccounts(nftAddress, userAddress, programId);
+    expect(result.creditsPda.toString()).to.equal(
+      expectedCreditsPda.toString()
+    );
+  });
+});
+
+describe("getImageBufferFromUrl", () => {
+  const mockUrl = "https://example.com/image.png";
+  const mockName = "example-image";
+
+  before(() => {
+    // Mock the axios.get method to return a mock image buffer
+    axios.get = async <T = any, R = AxiosResponse<T>>(url: string) => {
+      return { data: Buffer.from("mock-image-buffer", "utf-8") } as R;
+    };
+  });
+
+  it("should return a File object with the correct name", async () => {
+    const expectedFileName = `${mockName}.png`;
+    const file = await getImageBufferFromUrl(mockUrl, mockName);
+
+    // defined as file because metaplex expects it
+    // buffer has no name attribute
+    expect(file).to.be.an.instanceOf(Buffer);
+    expect(file.name).to.equal(expectedFileName);
   });
 });
