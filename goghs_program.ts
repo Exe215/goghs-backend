@@ -62,6 +62,10 @@ export type GoghsProgram = {
           type: {
             vec: "u16";
           };
+        },
+        {
+          name: "instructionType";
+          type: "u8";
         }
       ];
     },
@@ -223,6 +227,10 @@ export type GoghsProgram = {
           {
             name: "paymentType";
             type: "u8";
+          },
+          {
+            name: "instructionType";
+            type: "u8";
           }
         ];
       };
@@ -269,6 +277,11 @@ export type GoghsProgram = {
       code: 6004;
       name: "NoCreators";
       msg: "No valid creators";
+    },
+    {
+      code: 6005;
+      name: "BackendDoesNotMatch";
+      msg: "Backend account not walid";
     }
   ];
 };
@@ -337,6 +350,10 @@ export const IDL: GoghsProgram = {
           type: {
             vec: "u16",
           },
+        },
+        {
+          name: "instructionType",
+          type: "u8",
         },
       ],
     },
@@ -499,6 +516,10 @@ export const IDL: GoghsProgram = {
             name: "paymentType",
             type: "u8",
           },
+          {
+            name: "instructionType",
+            type: "u8",
+          },
         ],
       },
     },
@@ -544,6 +565,11 @@ export const IDL: GoghsProgram = {
       code: 6004,
       name: "NoCreators",
       msg: "No valid creators",
+    },
+    {
+      code: 6005,
+      name: "BackendDoesNotMatch",
+      msg: "Backend account not walid",
     },
   ],
 };

@@ -32,6 +32,7 @@ export type ReceiptData = {
   receiptIndexPath: number[];
   inProgress: boolean;
   paymentType: number;
+  instructionType: number;
 };
 
 export class AlreadyInProgressError extends Error {

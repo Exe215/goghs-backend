@@ -1,8 +1,9 @@
 import { Metaplex, toMetaplexFile } from "@metaplex-foundation/js";
 import { Program } from "@project-serum/anchor";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { clusterApiUrl, Connection, Keypair, PublicKey } from "@solana/web3.js";
 import axios from "axios";
 import { OpenAIApi } from "openai";
+import { Key } from "readline";
 import { GoghsProgram } from "./goghs_program";
 import {
   AccountData,
@@ -108,16 +109,26 @@ export async function getReceiptData(
   const inProgress = receiptState.inProgress;
   const receiptTimestamp = receiptState.time.toNumber();
   const paymentType = receiptState.paymentType;
+  const instructionType = receiptState.instructionType;
 
   if (receiptIndexPath.length < 1 || !Array.isArray(receiptIndexPath)) {
     throw new Error("IndexPath not valid");
   }
+
+  console.log("receipt data", {
+    receiptIndexPath,
+    receiptTimestamp,
+    inProgress,
+    paymentType,
+    instructionType,
+  });
 
   return {
     receiptIndexPath,
     receiptTimestamp,
     inProgress,
     paymentType,
+    instructionType,
   };
 }
 
@@ -729,6 +740,95 @@ export async function modifyNft(
     } catch (e) {
       console.log("ERR closing receipt account failed", e);
       throw e;
+    }
+  }
+}
+
+export async function closeNftModification(
+  req: any,
+  program: Program<GoghsProgram>,
+  programId: PublicKey,
+  signer: Keypair,
+  metaplex: Metaplex
+) {
+  let canKeepMoney = true;
+  // -----------------------------------------------------------------
+  // Check parameters
+
+  const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+
+  if (!req.body.nft_address || !req.body.user_address) {
+    console.log("ERR Missing Params");
+    throw new Error("Missing Params");
+  }
+
+  const nftAddress = new PublicKey(req.body.nft_address);
+  const userAddress = new PublicKey(req.body.user_address);
+
+  // ------------------------------------------------------------------
+  // Set in_progress state true on receipt
+
+  try {
+    const { receiptPda } = getProgramAccounts(
+      nftAddress,
+      userAddress,
+      programId
+    );
+
+    const { inProgress, receiptTimestamp, instructionType } =
+      await getReceiptData(receiptPda, program);
+
+    const slot = await connection.getSlot();
+    const solanaTimestamp = await connection.getBlockTime(slot);
+
+    if (!solanaTimestamp) {
+      throw new Error("Could not get the solana time");
+    }
+
+    // check if user should be refunded
+
+    const { receiptIndexPath: indexPath } = await getReceiptData(
+      receiptPda,
+      program
+    );
+
+    const imgUrlAtPath = await getImageAtPath(metaplex, nftAddress, indexPath);
+
+    const nftMetaData = await getMetadataFromNftMintAddress(
+      nftAddress,
+      metaplex
+    );
+
+    switch (instructionType) {
+      case Modification.CoverChange:
+        console.log(imgUrlAtPath, nftMetaData.image, "is the image the same?");
+        if (imgUrlAtPath != nftMetaData.image) {
+          canKeepMoney = false;
+        }
+        break;
+      case Modification.Variation:
+      // TODO add variation count at parent to receipt
+      // TODO add favorite state at parent to receipt
+    }
+
+    // Endpoint is for closing after failure.
+    // Should use modification endpoint if not processed yet
+    if (!inProgress) {
+      throw new Error("Closing failed. Receipt not in progress");
+    }
+  } catch (e) {
+    try {
+      await closeReceiptAccount(
+        canKeepMoney,
+        nftAddress,
+        userAddress,
+        programId,
+        program,
+        signer
+      );
+    } catch (e) {
+      console.log("ERR closing receipt account failed", e);
+      throw new Error("closing receipt account failed");
     }
   }
 }

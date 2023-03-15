@@ -11,12 +11,19 @@ import {
 } from "@project-serum/anchor";
 import { clusterApiUrl, Connection, Keypair, PublicKey } from "@solana/web3.js";
 import cors from "cors";
+import { sign } from "crypto";
 import express from "express";
 import { Configuration, OpenAIApi } from "openai";
 import path from "path";
 import secret from "./devnet.json";
 import { IDL } from "./goghs_program";
-import { modifyNft } from "./helper";
+import {
+  closeNftModification,
+  closeReceiptAccount,
+  getProgramAccounts,
+  getReceiptData,
+  modifyNft,
+} from "./helper";
 import { Modification } from "./types";
 
 const PROGRAM_ID = new PublicKey(
@@ -84,10 +91,10 @@ app.post("/api/setCover", async function (req, res) {
       program,
       metaplex
     );
-    res.send(200);
+    res.sendStatus(200);
   } catch (e) {
     console.log("Cover Change failed", e);
-    res.send(400);
+    res.sendStatus(400);
   }
 });
 
@@ -113,10 +120,10 @@ app.post("/api/variation", async function (req, res) {
       metaplex,
       openai
     );
-    res.send(200);
+    res.sendStatus(200);
   } catch (e) {
     console.log("Cover Change failed", e);
-    res.send(400);
+    res.sendStatus(400);
   }
 });
 
@@ -133,10 +140,23 @@ app.post("/api/toggleFavorite", async function (req, res) {
       metaplex,
       openai
     );
-    res.send(200);
+    res.sendStatus(200);
   } catch (e) {
     console.log("Cover Change failed", e);
-    res.send(400);
+    res.sendStatus(400);
   }
 });
+
+app.post("/api/closeReceipt", async function (req, res) {
+  console.log("================================");
+  console.log("/api/closeReceipt");
+  try {
+    await closeNftModification(req, program, PROGRAM_ID, WALLET, metaplex);
+    res.sendStatus(200);
+  } catch (e) {
+    console.log("Cover Change failed", e);
+    res.sendStatus(400);
+  }
+});
+
 export default app;
