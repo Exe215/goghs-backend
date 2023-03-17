@@ -64,6 +64,10 @@ export type GoghsProgram = {
           };
         },
         {
+          name: "oldMetadata";
+          type: "string";
+        },
+        {
           name: "instructionType";
           type: "u8";
         }
@@ -231,6 +235,10 @@ export type GoghsProgram = {
           {
             name: "instructionType";
             type: "u8";
+          },
+          {
+            name: "oldMetadata";
+            type: "string";
           }
         ];
       };
@@ -350,6 +358,10 @@ export const IDL: GoghsProgram = {
           type: {
             vec: "u16",
           },
+        },
+        {
+          name: "oldMetadata",
+          type: "string",
         },
         {
           name: "instructionType",
@@ -519,6 +531,10 @@ export const IDL: GoghsProgram = {
           {
             name: "instructionType",
             type: "u8",
+          },
+          {
+            name: "oldMetadata",
+            type: "string",
           },
         ],
       },

@@ -33,6 +33,7 @@ export type ReceiptData = {
   inProgress: boolean;
   paymentType: number;
   instructionType: number;
+  oldMetadataUri: string;
 };
 
 export class AlreadyInProgressError extends Error {

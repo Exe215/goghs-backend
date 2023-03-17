@@ -11,23 +11,16 @@ import {
 } from "@project-serum/anchor";
 import { clusterApiUrl, Connection, Keypair, PublicKey } from "@solana/web3.js";
 import cors from "cors";
-import { sign } from "crypto";
 import express from "express";
 import { Configuration, OpenAIApi } from "openai";
 import path from "path";
 import secret from "./devnet.json";
 import { IDL } from "./goghs_program";
-import {
-  closeNftModification,
-  closeReceiptAccount,
-  getProgramAccounts,
-  getReceiptData,
-  modifyNft,
-} from "./helper";
+import { closeNftModification, modifyNft } from "./helper";
 import { Modification } from "./types";
 
 const PROGRAM_ID = new PublicKey(
-  "3FuKunkB8zMpFeFKDycDNE7q9ir6Rr1JtE6Wve9vv9UY"
+  "6Ru71r5FRDfoUFhVe6uMQmoGbS8BAv5MXsERfRppSZ3V"
 );
 
 // OpenAi Setup
