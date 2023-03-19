@@ -116,15 +116,6 @@ export async function getReceiptData(
     throw new Error("IndexPath not valid");
   }
 
-  console.log("receipt data", {
-    receiptIndexPath,
-    receiptTimestamp,
-    inProgress,
-    paymentType,
-    instructionType,
-    oldMetadataUri,
-  });
-
   return {
     receiptIndexPath,
     receiptTimestamp,
@@ -172,7 +163,6 @@ export async function getImageAtPath(
     }
     imgUrlAtPath = nftCoverImageUrl;
   }
-  console.log("Found imgUrlAtPath:", imgUrlAtPath);
   return imgUrlAtPath;
 }
 
@@ -302,7 +292,6 @@ export function getMetadataWithNewVariation(
   });
 
   let lastIndexInParent = parent.variations.length - 1;
-  console.log(lastIndexInParent, "lastIndexInParent");
 
   // adjust the visible path and focus
   let newVisiblePath = [...indexPath, lastIndexInParent];
@@ -425,13 +414,16 @@ export async function createImageVariationAndUpdateNft(
 
   const imageBuffer = await getImageBufferFromUrl(imgUrlAtPath, "image");
 
+  console.log(`${new Date().toLocaleTimeString()}: Start Dalle call`);
   const openAiImageUrl = await getOpenAiVariation(imageBuffer, openai);
+  console.log(`${new Date().toLocaleTimeString()}: Finish Dalle call`);
 
+  console.log(`${new Date().toLocaleTimeString()}: Upload File to Metaplex`);
   const newMetaplexImageUrl = await uploadFileToMetaplex(
     openAiImageUrl,
     metaplex
   );
-
+  console.log(`${new Date().toLocaleTimeString()}: Successfully uploaded file`);
   const metadata = await getMetadataFromNftMintAddress(nftAddress, metaplex);
 
   const nftWithChangedMetaData = getMetadataWithNewVariation(
@@ -440,7 +432,11 @@ export async function createImageVariationAndUpdateNft(
     newMetaplexImageUrl
   );
 
+  console.log(
+    `${new Date().toLocaleTimeString()}: Start uploading new Metadata`
+  );
   await updateNftWithNewMetadata(metaplex, nftAddress, nftWithChangedMetaData);
+  console.log(`${new Date().toLocaleTimeString()}: Finish Modification`);
 }
 
 /**
@@ -483,8 +479,6 @@ export async function setNewCoverImage(
     },
     image: newUrl,
   };
-
-  console.log(JSON.stringify(nftWithChangedMetaData), "nftWithChangedMetaData");
 
   return nftWithChangedMetaData;
 }
