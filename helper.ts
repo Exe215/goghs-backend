@@ -716,7 +716,13 @@ export async function modifyNft(
   // Set in_progress state true on receipt
 
   try {
-    startProcessOnReceipt(nftAddress, userAddress, programId, program, signer);
+    await startProcessOnReceipt(
+      nftAddress,
+      userAddress,
+      programId,
+      program,
+      signer
+    );
   } catch (e) {
     if (e instanceof AlreadyInProgressError) {
       throw e;
