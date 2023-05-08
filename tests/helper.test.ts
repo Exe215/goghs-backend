@@ -35,8 +35,7 @@ describe("indexPathEqual", () => {
 
 describe("getVariationAtPath", () => {
   const mockHistory = {
-    focusIndex: 2,
-    visiblePath: [0, 1, 0],
+    coverPath: [0, 1, 0],
     favorites: [],
     baseImages: [
       {
