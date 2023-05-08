@@ -2,8 +2,7 @@ import { JsonMetadata } from "@metaplex-foundation/js";
 import { PublicKey } from "@solana/web3.js";
 
 export type NftHistory = {
-  visiblePath: IndexPath;
-  focusIndex: number;
+  coverPath: IndexPath;
   favorites: IndexPath[];
   baseImages: ImageVariation[];
 };

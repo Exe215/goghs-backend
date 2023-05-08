@@ -350,8 +350,8 @@ export function getMetadataWithNewVariations(
   // get history property or init if freshly minted
   const currentDate = dateToString(new Date());
   const oldHistory = nftMetaData?.properties?.history || {
-    focusIndex: 0,
-    visiblePath: [0],
+    // TODO: in the end we will have a placeholder mint image that is not the actual cover
+    coverPath: [0],
     favorites: [],
     baseImages: [
       /// TODO: we should initialize this at mint instead
@@ -369,15 +369,8 @@ export function getMetadataWithNewVariations(
     });
   });
 
-  let lastIndexInParent = parent.variations.length - 1;
-
-  // adjust the visible path and focus
-  let newVisiblePath = [...indexPath, lastIndexInParent];
-  let newFocusIndex = newVisiblePath.length - 1;
-
-  const newHistory = {
-    focusIndex: newFocusIndex,
-    visiblePath: newVisiblePath,
+  const newHistory: NftHistory = {
+    coverPath: oldHistory.coverPath,
     favorites: oldHistory.favorites,
     baseImages: oldHistory.baseImages, // Now includes new child
   };
@@ -519,8 +512,7 @@ export async function createImageVariationAndUpdateNft(
 
 /**
  * Sets image and files attribute to new url in metadata
- * Sets visiblePath to indexPath
- * Sets focusIndex to cover position
+ * Sets `coverPath` to `indexPath`
  *
  * @returns Updated metadata
  */
@@ -528,17 +520,12 @@ export async function setNewCoverImage(
   nftMetaData: ExtendedJsonMetadata,
   indexPath: IndexPath,
   newUrl: string
-) {
+): Promise<ExtendedJsonMetadata> {
   // get history property
   const oldHistory: any = nftMetaData!.properties!.history;
 
-  // adjust the visible path and focus
-  let newVisiblePath = indexPath;
-  let newFocusIndex = newVisiblePath.length - 1;
-
-  const newHistory = {
-    focusIndex: newFocusIndex,
-    visiblePath: newVisiblePath,
+  const newHistory: NftHistory = {
+    coverPath: indexPath,
     favorites: oldHistory.favorites,
     baseImages: oldHistory.baseImages, // Unchanged
   };
@@ -618,11 +605,9 @@ export async function setNewCoverImageAndUpdateNft(
 
   const imgUrlAtPath = await getImageAtPath(metaplex, nftAddress, indexPath);
 
-  const metadataWithNewCoverImage = await setNewCoverImage(
-    nftMetaData,
-    indexPath,
-    imgUrlAtPath
-  );
+  const metadataWithNewCoverImage: ExtendedJsonMetadata =
+    await setNewCoverImage(nftMetaData, indexPath, imgUrlAtPath);
+
   await updateNftWithNewMetadata(
     metaplex,
     nftAddress,
