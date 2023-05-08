@@ -75,7 +75,7 @@ export function getMetadataWithNewVariations(
   newImageUrls: string[]
 ): ExtendedJsonMetadata {
   // get evolution attribute
-  const nftCoverImageUrl = nftMetaData.image;
+  const nftCoverImageUrl = nftMetaData.image!;
   const oldAttributes = nftMetaData?.attributes || [
     { trait_type: "Evolution", value: "0" },
   ];
@@ -84,20 +84,9 @@ export function getMetadataWithNewVariations(
 
   // get history property or init if freshly minted
   const currentDate = dateToString(new Date());
-  const oldHistory: NftHistory = nftMetaData?.properties?.history || {
-    // TODO: in the end we will have a placeholder mint image that is not the actual cover
-    coverPath: [0],
-    favorites: [],
-    baseImages: [
-      /// TODO: we should initialize this at mint instead
-      {
-        url: nftCoverImageUrl,
-        date: currentDate,
-        prompt: 0, // TODO: add toplevel prompt list
-        variations: [],
-      },
-    ],
-  };
+  const oldHistory: NftHistory =
+    nftMetaData?.properties?.history ||
+    getInitialHistory(nftCoverImageUrl, currentDate);
 
   // get the parent into which we want to insert the new child
   const parent = getVariationAtPath(oldHistory, indexPath)!;
@@ -105,17 +94,12 @@ export function getMetadataWithNewVariations(
     parent.variations.push({
       url,
       date: currentDate,
-      prompt: 0, // TODO: add toplevel prompt list
+      prompt: 0, // TODO: needs to be dynamic to the prompt
       variations: [],
     });
   });
 
-  const newHistory: NftHistory = {
-    coverPath: oldHistory.coverPath,
-    favorites: oldHistory.favorites,
-    baseImages: oldHistory.baseImages, // Now includes new child
-  };
-
+  // oldHistory was modified and contains the new imageResults
   const nftWithChangedMetaData = {
     ...nftMetaData,
     attributes: [
@@ -124,10 +108,6 @@ export function getMetadataWithNewVariations(
         value: newEvolutionValue.toString(),
       },
     ],
-    properties: {
-      ...nftMetaData.properties,
-      history: newHistory,
-    },
   };
 
   console.log(JSON.stringify(nftWithChangedMetaData), "nftWithChangedMetaData");
@@ -150,9 +130,8 @@ export async function setNewCoverImage(
   const oldHistory: any = nftMetaData!.properties!.history;
 
   const newHistory: NftHistory = {
+    ...oldHistory,
     coverPath: indexPath,
-    favorites: oldHistory.favorites,
-    baseImages: oldHistory.baseImages, // Unchanged
   };
 
   const nftWithChangedMetaData = {
@@ -204,4 +183,36 @@ export async function toggleFavoriteOfVariation(
   };
 
   return nftWithChangedMetaData;
+}
+
+function getInitialHistory(
+  nftCoverImageUrl: string,
+  currentDate: string
+): NftHistory {
+  return {
+    // TODO: in the end we will have a placeholder mint image that is not the actual cover
+    coverPath: [0],
+    favorites: [],
+    baseImages: [
+      /// TODO: we should initialize this at mint instead
+      {
+        url: nftCoverImageUrl,
+        date: currentDate,
+        prompt: 0,
+        variations: [],
+      },
+    ],
+    prompts: [
+      // empty prompt is legal
+      // -> use that for baseImage
+      [],
+    ],
+    traitValues: [
+      "eyes:sunglasses",
+      "head:crown",
+      "body:hoodie",
+      "misc:globe",
+      "bg:clouds",
+    ],
+  };
 }

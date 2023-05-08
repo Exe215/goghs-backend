@@ -2,26 +2,6 @@ import { JsonMetadata } from "@metaplex-foundation/js";
 
 export type IndexPath = number[];
 
-export type NftHistory = {
-  coverPath: IndexPath;
-  favorites: IndexPath[];
-  baseImages: ImageResult[];
-};
-
-export interface ExtendedJsonMetadata extends JsonMetadata {
-  properties: JsonMetadata["properties"] & {
-    history: NftHistory;
-  };
-}
-
-export enum TraiId {
-  head, // head
-  eye, // eyes
-  body, // body
-  misc, // michellesanus
-  bg, // background
-}
-
 /**
 Encodes a specific value for one of the traits.
 
@@ -47,6 +27,30 @@ their resolution to actual prompts on the backend
   => "underwater, surrounded by colorful fishes"
 */
 export type TraitValueId = String;
+
+export type Prompt = TraitValueId[];
+
+export type NftHistory = {
+  coverPath: IndexPath;
+  favorites: IndexPath[];
+  baseImages: ImageResult[];
+  traitValues: TraitValueId[];
+  prompts: Prompt[];
+};
+
+export interface ExtendedJsonMetadata extends JsonMetadata {
+  properties: JsonMetadata["properties"] & {
+    history: NftHistory;
+  };
+}
+
+export enum TraiId {
+  head, // head
+  eye, // eyes
+  body, // body
+  misc, // michellesanus
+  bg, // background
+}
 
 export type ImageResult = {
   /// Path to the hosted image resource
