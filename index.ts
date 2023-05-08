@@ -16,7 +16,7 @@ import { Configuration, OpenAIApi } from "openai";
 import path from "path";
 import secret from "./devnet.json";
 import { IDL } from "./goghs_program";
-import { closeNftModification, modifyNft } from "./helper";
+import { closeNftModification, modifyNft } from "./lib/modification";
 import { Modification } from "./types/program";
 
 const PROGRAM_ID = new PublicKey(

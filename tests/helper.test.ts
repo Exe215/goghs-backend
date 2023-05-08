@@ -1,35 +1,31 @@
-import { Program } from "@project-serum/anchor";
 import { PublicKey } from "@solana/web3.js";
-import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
+import axios, { AxiosResponse } from "axios";
 import { expect } from "chai";
-import { GoghsProgram } from "../goghs_program";
 import {
+  indexPathsEqual,
   dateToString,
   getImageBufferFromUrl,
-  getProgramAccounts,
-  getReceiptData,
-  getVariationAtPath,
-  indexPathEqual,
-} from "../helper";
-import { ReceiptData } from "../types/program";
+} from "../lib/helper";
+import { getVariationAtPath } from "../lib/history";
+import { getProgramAccounts } from "../lib/solana";
 
 describe("indexPathEqual", () => {
   it("should return true for identical index paths", function () {
     const a = [1, 2, 3];
     const b = [1, 2, 3];
-    expect(indexPathEqual(a, b)).to.equal(true);
+    expect(indexPathsEqual(a, b)).to.equal(true);
   });
 
   it("should return false for different index paths", function () {
     const a = [1, 2, 3];
     const b = [1, 2, 4];
-    expect(indexPathEqual(a, b)).to.equal(false);
+    expect(indexPathsEqual(a, b)).to.equal(false);
   });
 
   it("should return false for index paths of different lengths", function () {
     const a = [1, 2, 3];
     const b = [1, 2];
-    expect(indexPathEqual(a, b)).to.equal(false);
+    expect(indexPathsEqual(a, b)).to.equal(false);
   });
 });
 
