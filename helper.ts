@@ -239,7 +239,7 @@ export async function getDreamStudioImgToImgVariation(
   imageStrenght: number,
   file: File,
   metaplex: Metaplex
-): Promise<string> {
+): Promise<string[]> {
   console.log(
     `${new Date().toLocaleTimeString()}: Start image generation call`
   );
@@ -264,7 +264,7 @@ export async function getDreamStudioImgToImgVariation(
         ],
         cfg_scale: 7,
         clip_guidance_preset: "FAST_BLUE",
-        samples: 1,
+        samples: 3,
         steps: 30,
       }),
     }
@@ -287,21 +287,25 @@ export async function getDreamStudioImgToImgVariation(
 
   const responseJSON = (await response.json()) as GenerationResponse;
 
+  const newMetaplexImageUrls: string[] = [];
   // TODO: Modify to allow a variable number of images
-  const buffer = base64ToArrayBuffer(responseJSON.artifacts[0].base64);
-  let metaplexFile = toMetaplexFile(buffer, "image.png");
+  responseJSON.artifacts.forEach(async (artifact, i) => {
+    const buffer = base64ToArrayBuffer(artifact.base64);
+    const metaplexFile = toMetaplexFile(buffer, "image.png");
 
-  console.log(
-    `${new Date().toLocaleTimeString()}: Start uploading image to Metaplex`
-  );
+    console.log(
+      `${new Date().toLocaleTimeString()}: Start uploading image ${i} to Metaplex`
+    );
 
-  const newMetaplexImageUrl = await metaplex.storage().upload(metaplexFile);
+    const newMetaplexImageUrl = await metaplex.storage().upload(metaplexFile);
 
-  console.log(
-    `${new Date().toLocaleTimeString()}: Finish uploading image to Metaplex`
-  );
+    console.log(
+      `${new Date().toLocaleTimeString()}: Finish uploading image ${i} to Metaplex`
+    );
 
-  return newMetaplexImageUrl;
+    newMetaplexImageUrls.push(newMetaplexImageUrl);
+  });
+  return newMetaplexImageUrls;
 }
 
 /**
@@ -330,10 +334,10 @@ export async function uploadFileToMetaplex(
   return newMetaplexImageUrl;
 }
 
-export function getMetadataWithNewVariation(
+export function getMetadataWithNewVariations(
   nftMetaData: ExtendedJsonMetadata,
   indexPath: IndexPath,
-  newImageUrl: string
+  newImageUrls: string[]
 ): ExtendedJsonMetadata {
   // get evolution attribute
   const nftCoverImageUrl = nftMetaData.image;
@@ -357,10 +361,12 @@ export function getMetadataWithNewVariation(
 
   // get the parent into which we want to insert the new child
   const parent = getVariationAtPath(oldHistory, indexPath)!;
-  parent.variations.push({
-    url: newImageUrl,
-    created: currentDate,
-    variations: [],
+  newImageUrls.forEach((url) => {
+    parent.variations.push({
+      url,
+      created: currentDate,
+      variations: [],
+    });
   });
 
   let lastIndexInParent = parent.variations.length - 1;
@@ -386,15 +392,8 @@ export function getMetadataWithNewVariation(
     ],
     properties: {
       ...nftMetaData.properties,
-      files: [
-        {
-          uri: newImageUrl,
-          type: "image/png",
-        },
-      ],
       history: newHistory,
     },
-    image: newImageUrl,
   };
 
   console.log(JSON.stringify(nftWithChangedMetaData), "nftWithChangedMetaData");
@@ -505,7 +504,7 @@ export async function createImageVariationAndUpdateNft(
 
   const metadata = await getMetadataFromNftMintAddress(nftAddress, metaplex);
 
-  const nftWithChangedMetaData = getMetadataWithNewVariation(
+  const nftWithChangedMetaData = getMetadataWithNewVariations(
     metadata,
     indexPath,
     newMetaplexImageUrl
