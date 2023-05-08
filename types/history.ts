@@ -5,13 +5,7 @@ export type IndexPath = number[];
 export type NftHistory = {
   coverPath: IndexPath;
   favorites: IndexPath[];
-  baseImages: ImageVariation[];
-};
-
-export type ImageVariation = {
-  url: string;
-  created: string;
-  variations: ImageVariation[];
+  baseImages: ImageResult[];
 };
 
 export interface ExtendedJsonMetadata extends JsonMetadata {
@@ -54,7 +48,7 @@ their resolution to actual prompts on the backend
 */
 export type TraitValueId = String;
 
-type ImageResult = {
+export type ImageResult = {
   /// Path to the hosted image resource
   /// probably on arweave
   url: string;
@@ -76,7 +70,7 @@ type ImageResult = {
   /// We could also send character info together with the image variation request, if a new char is created
   /// from inside the builder during prompt building. This character would only be saved if the prompt request
   /// is actually sent out.
-  character?: number;
+  /// character?: number;
 
   /// Image variations that were created on the
   /// base of this one.

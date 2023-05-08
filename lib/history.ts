@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import {
   ExtendedJsonMetadata,
-  ImageVariation,
+  ImageResult,
   IndexPath,
   NftHistory,
 } from "../types/history";
@@ -17,7 +17,7 @@ import { indexPathsEqual, dateToString } from "./helper";
 export function getVariationAtPath(
   history: NftHistory,
   indexPath: IndexPath
-): ImageVariation | null {
+): ImageResult | null {
   if (!indexPath) return null;
 
   let current = history.baseImages[indexPath[0]];
@@ -84,13 +84,18 @@ export function getMetadataWithNewVariations(
 
   // get history property or init if freshly minted
   const currentDate = dateToString(new Date());
-  const oldHistory = nftMetaData?.properties?.history || {
+  const oldHistory: NftHistory = nftMetaData?.properties?.history || {
     // TODO: in the end we will have a placeholder mint image that is not the actual cover
     coverPath: [0],
     favorites: [],
     baseImages: [
       /// TODO: we should initialize this at mint instead
-      { url: nftCoverImageUrl, created: currentDate, variations: [] },
+      {
+        url: nftCoverImageUrl,
+        date: currentDate,
+        prompt: 0, // TODO: add toplevel prompt list
+        variations: [],
+      },
     ],
   };
 
@@ -99,7 +104,8 @@ export function getMetadataWithNewVariations(
   newImageUrls.forEach((url) => {
     parent.variations.push({
       url,
-      created: currentDate,
+      date: currentDate,
+      prompt: 0, // TODO: add toplevel prompt list
       variations: [],
     });
   });
