@@ -1,25 +1,4 @@
-import { JsonMetadata } from "@metaplex-foundation/js";
 import { PublicKey } from "@solana/web3.js";
-
-export type NftHistory = {
-  coverPath: IndexPath;
-  favorites: IndexPath[];
-  baseImages: ImageVariation[];
-};
-
-export type ImageVariation = {
-  url: string;
-  created: string;
-  variations: ImageVariation[];
-};
-
-export type IndexPath = number[];
-
-export interface ExtendedJsonMetadata extends JsonMetadata {
-  properties: JsonMetadata["properties"] & {
-    history: NftHistory;
-  };
-}
 
 export type AccountData = {
   creditsPda: PublicKey;

@@ -11,7 +11,7 @@ import {
   getVariationAtPath,
   indexPathEqual,
 } from "../helper";
-import { ReceiptData } from "../types";
+import { ReceiptData } from "../types/program";
 
 describe("indexPathEqual", () => {
   it("should return true for identical index paths", function () {

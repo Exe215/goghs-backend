@@ -6,15 +6,18 @@ import * as dotenv from "dotenv";
 import { OpenAIApi } from "openai";
 import { GoghsProgram } from "./goghs_program";
 import {
-  AccountData,
-  AlreadyInProgressError,
   ExtendedJsonMetadata,
   ImageVariation,
   IndexPath,
-  Modification,
   NftHistory,
+} from "./types/history";
+
+import {
   ReceiptData,
-} from "./types";
+  Modification,
+  AccountData,
+  AlreadyInProgressError,
+} from "./types/program";
 
 dotenv.config();
 

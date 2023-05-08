@@ -17,7 +17,7 @@ import path from "path";
 import secret from "./devnet.json";
 import { IDL } from "./goghs_program";
 import { closeNftModification, modifyNft } from "./helper";
-import { Modification } from "./types";
+import { Modification } from "./types/program";
 
 const PROGRAM_ID = new PublicKey(
   "6Ru71r5FRDfoUFhVe6uMQmoGbS8BAv5MXsERfRppSZ3V"
