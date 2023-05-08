@@ -2,6 +2,9 @@ import { Metaplex, toMetaplexFile } from "@metaplex-foundation/js";
 import { OpenAIApi } from "openai";
 import { base64ToArrayBuffer } from "./helper";
 
+const GENERATION_STEPS = 50;
+const SAMPLE_SIZE = 3;
+
 /**
  * @returns New DALLE variation of an image as link.
  */
@@ -55,8 +58,8 @@ export async function getDreamStudioImgToImgVariation(
         ],
         cfg_scale: 7,
         clip_guidance_preset: "FAST_BLUE",
-        samples: 3,
-        steps: 30,
+        samples: SAMPLE_SIZE,
+        steps: GENERATION_STEPS,
       }),
     }
   );

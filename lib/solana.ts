@@ -56,6 +56,7 @@ export async function getReceiptData(
   const paymentType = receiptState.paymentType;
   const instructionType = receiptState.instructionType;
   const oldMetadataUri = receiptState.oldMetadata;
+  const prompt = receiptState.prompt;
 
   if (receiptIndexPath.length < 1 || !Array.isArray(receiptIndexPath)) {
     throw new Error("IndexPath not valid");
@@ -68,6 +69,7 @@ export async function getReceiptData(
     paymentType,
     instructionType,
     oldMetadataUri,
+    prompt,
   };
 }
 

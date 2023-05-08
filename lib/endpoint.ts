@@ -1,5 +1,9 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { AlreadyInProgressError, Modification } from "../types/program";
+import {
+  AlreadyInProgressError,
+  Modification,
+  ReceiptData,
+} from "../types/program";
 import { Program } from "@project-serum/anchor";
 import { GoghsProgram } from "../goghs_program";
 import { Metaplex } from "@metaplex-foundation/js";
@@ -21,6 +25,7 @@ import {
 import { getImageBufferFromUrl } from "./helper";
 import { ExtendedJsonMetadata } from "../types/history";
 import { getDreamStudioImgToImgVariation } from "./api";
+import { generateTextFromPrompt } from "./prompt";
 
 export async function closeNftModification(
   req: any,
@@ -224,10 +229,8 @@ export async function createImageVariationAndUpdateNft(
 ) {
   const { receiptPda } = getProgramAccounts(nftAddress, userAddress, programId);
 
-  const { receiptIndexPath: indexPath } = await getReceiptData(
-    receiptPda,
-    program
-  );
+  const { receiptIndexPath: indexPath, prompt }: ReceiptData =
+    await getReceiptData(receiptPda, program);
 
   const imgUrlAtPath = await getImageAtPath(metaplex, nftAddress, indexPath);
 
@@ -243,9 +246,11 @@ export async function createImageVariationAndUpdateNft(
   // );
   // console.log(`${new Date().toLocaleTimeString()}: Successfully uploaded file`);
 
+  const promptText = generateTextFromPrompt(prompt);
+
   const newMetaplexImageUrl = await getDreamStudioImgToImgVariation(
-    "a oil portrait of a man wearing sunglasses, in the style of vincent van gogh",
-    0.35,
+    promptText,
+    0.2,
     imageBuffer,
     metaplex
   );

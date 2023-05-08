@@ -1,4 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
+import { Prompt } from "./history";
 
 export type AccountData = {
   creditsPda: PublicKey;
@@ -12,6 +13,7 @@ export type ReceiptData = {
   paymentType: number;
   instructionType: number;
   oldMetadataUri: string;
+  prompt: Prompt;
 };
 
 export class AlreadyInProgressError extends Error {
