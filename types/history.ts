@@ -44,7 +44,7 @@ export interface ExtendedJsonMetadata extends JsonMetadata {
   };
 }
 
-export enum TraiId {
+export enum TraitId {
   head, // head
   eye, // eyes
   body, // body
