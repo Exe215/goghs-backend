@@ -34,3 +34,18 @@ function separatePromptTraits(prompt: Prompt): Map<TraitId, string> {
 
   return map;
 }
+
+export function checkIfSelectedPromptIsValid(
+  prompt: Prompt,
+  metadata: ExtendedJsonMetadata
+) {
+  const history = metadata.properties.history;
+  const traitValues = history.traitValues;
+
+  prompt.forEach((trait) => {
+    if (!traitValues.includes(trait)) {
+      throw new Error(`TraitValues Array of NFT does not include ${trait}`);
+    }
+  });
+  return true;
+}
