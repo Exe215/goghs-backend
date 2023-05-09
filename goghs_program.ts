@@ -70,6 +70,12 @@ export type GoghsProgram = {
         {
           name: "instructionType";
           type: "u8";
+        },
+        {
+          name: "prompt";
+          type: {
+            vec: "string";
+          };
         }
       ];
     },
@@ -206,6 +212,32 @@ export type GoghsProgram = {
           type: "bool";
         }
       ];
+    },
+    {
+      name: "closeCredits";
+      accounts: [
+        {
+          name: "credits";
+          isMut: true;
+          isSigner: false;
+        },
+        {
+          name: "nftMint";
+          isMut: false;
+          isSigner: false;
+        },
+        {
+          name: "backend";
+          isMut: true;
+          isSigner: true;
+        },
+        {
+          name: "systemProgram";
+          isMut: false;
+          isSigner: false;
+        }
+      ];
+      args: [];
     }
   ];
   accounts: [
@@ -239,6 +271,12 @@ export type GoghsProgram = {
           {
             name: "oldMetadata";
             type: "string";
+          },
+          {
+            name: "prompt";
+            type: {
+              vec: "string";
+            };
           }
         ];
       };
@@ -279,7 +317,7 @@ export type GoghsProgram = {
     {
       code: 6003;
       name: "MasterEditionKeyMismatch";
-      msg: "MasterEdition is not Valid";
+      msg: "MasterEdition is not valid";
     },
     {
       code: 6004;
@@ -289,7 +327,17 @@ export type GoghsProgram = {
     {
       code: 6005;
       name: "BackendDoesNotMatch";
-      msg: "Backend account not walid";
+      msg: "Backend account not valid";
+    },
+    {
+      code: 6006;
+      name: "MetadataUriNotValid";
+      msg: "Metadata Uri not valid";
+    },
+    {
+      code: 6007;
+      name: "NoCreditsLeft";
+      msg: "No Credits left";
     }
   ];
 };
@@ -366,6 +414,12 @@ export const IDL: GoghsProgram = {
         {
           name: "instructionType",
           type: "u8",
+        },
+        {
+          name: "prompt",
+          type: {
+            vec: "string",
+          },
         },
       ],
     },
@@ -503,6 +557,32 @@ export const IDL: GoghsProgram = {
         },
       ],
     },
+    {
+      name: "closeCredits",
+      accounts: [
+        {
+          name: "credits",
+          isMut: true,
+          isSigner: false,
+        },
+        {
+          name: "nftMint",
+          isMut: false,
+          isSigner: false,
+        },
+        {
+          name: "backend",
+          isMut: true,
+          isSigner: true,
+        },
+        {
+          name: "systemProgram",
+          isMut: false,
+          isSigner: false,
+        },
+      ],
+      args: [],
+    },
   ],
   accounts: [
     {
@@ -535,6 +615,12 @@ export const IDL: GoghsProgram = {
           {
             name: "oldMetadata",
             type: "string",
+          },
+          {
+            name: "prompt",
+            type: {
+              vec: "string",
+            },
           },
         ],
       },
@@ -575,7 +661,7 @@ export const IDL: GoghsProgram = {
     {
       code: 6003,
       name: "MasterEditionKeyMismatch",
-      msg: "MasterEdition is not Valid",
+      msg: "MasterEdition is not valid",
     },
     {
       code: 6004,
@@ -585,7 +671,17 @@ export const IDL: GoghsProgram = {
     {
       code: 6005,
       name: "BackendDoesNotMatch",
-      msg: "Backend account not walid",
+      msg: "Backend account not valid",
+    },
+    {
+      code: 6006,
+      name: "MetadataUriNotValid",
+      msg: "Metadata Uri not valid",
+    },
+    {
+      code: 6007,
+      name: "NoCreditsLeft",
+      msg: "No Credits left",
     },
   ],
 };
