@@ -1,4 +1,4 @@
-import { Prompt } from "../types/history";
+import { ExtendedJsonMetadata, Prompt, TraitId } from "../types/history";
 
 export function generateTextFromPrompt(prompt: Prompt): string {
   // TODO: check if values prompt values provided are valid
@@ -6,17 +6,23 @@ export function generateTextFromPrompt(prompt: Prompt): string {
   return "a oil portrait of a man wearing sunglasses, in the style of vincent van gogh";
 }
 
-function separatePromptTraits(arr: string[]): Map<string, string> {
-  if (arr.length > 3) {
+function separatePromptTraits(prompt: Prompt): Map<TraitId, string> {
+  if (prompt.length > 3) {
     throw new Error("Array should have max of 3 elements");
   }
 
   // set for checking selected option per trait only occurs once in prompt
-  const options = new Set<string>();
-  const map = new Map<string, string>();
+  const options = new Set<TraitId>();
+  const map = new Map<TraitId, string>();
 
-  arr.forEach((str) => {
-    const [option, value] = str.split(":");
+  prompt.forEach((trait) => {
+    const [optionStr, value] = trait.split(":");
+
+    if (!(optionStr in TraitId)) {
+      throw new Error(`Invalid option "${optionStr}"`);
+    }
+
+    const option = TraitId[optionStr as keyof typeof TraitId];
 
     if (options.has(option)) {
       throw new Error(`Option "${option}" occurs more than once`);
