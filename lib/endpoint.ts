@@ -25,7 +25,7 @@ import {
 import { getImageBufferFromUrl } from "./helper";
 import { ExtendedJsonMetadata } from "../types/history";
 import { getDreamStudioImgToImgVariation } from "./api";
-import { generateTextFromPrompt } from "./prompt";
+import { checkIfSelectedPromptIsValid, generateTextFromPrompt } from "./prompt";
 
 export async function closeNftModification(
   req: any,
@@ -246,6 +246,11 @@ export async function createImageVariationAndUpdateNft(
   // );
   // console.log(`${new Date().toLocaleTimeString()}: Successfully uploaded file`);
 
+  const metadata = await getMetadataFromNftMintAddress(nftAddress, metaplex);
+
+  // throws an error if a trait in prompt is not valid
+  checkIfSelectedPromptIsValid(prompt, metadata);
+
   const promptText = generateTextFromPrompt(prompt);
 
   const newMetaplexImageUrl = await getDreamStudioImgToImgVariation(
@@ -254,8 +259,6 @@ export async function createImageVariationAndUpdateNft(
     imageBuffer,
     metaplex
   );
-
-  const metadata = await getMetadataFromNftMintAddress(nftAddress, metaplex);
 
   const nftWithChangedMetaData = getMetadataWithNewVariations(
     metadata,
