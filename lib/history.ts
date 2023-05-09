@@ -108,6 +108,10 @@ export function getMetadataWithNewVariations(
         value: newEvolutionValue.toString(),
       },
     ],
+    properties: {
+      ...nftMetaData.properties,
+      history: oldHistory,
+    },
   };
 
   console.log(JSON.stringify(nftWithChangedMetaData), "nftWithChangedMetaData");
