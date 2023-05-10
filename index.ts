@@ -115,7 +115,7 @@ app.post("/api/variation", async function (req, res) {
     );
     res.sendStatus(200);
   } catch (e) {
-    console.log("Cover Change failed", e);
+    console.log("Generate variation failed", e);
     res.sendStatus(400);
   }
 });
@@ -135,7 +135,7 @@ app.post("/api/toggleFavorite", async function (req, res) {
     );
     res.sendStatus(200);
   } catch (e) {
-    console.log("Cover Change failed", e);
+    console.log("Toggle favorite failed", e);
     res.sendStatus(400);
   }
 });
