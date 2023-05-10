@@ -4,6 +4,7 @@ import {
   ImageResult,
   IndexPath,
   NftHistory,
+  Prompt,
 } from "../types/history";
 import { Metaplex } from "@metaplex-foundation/js";
 import { getMetadataFromNftMintAddress } from "./solana";
@@ -72,6 +73,7 @@ export async function getImageAtPath(
 export function getMetadataWithNewVariations(
   nftMetaData: ExtendedJsonMetadata,
   indexPath: IndexPath,
+  prompt: Prompt,
   newImageUrls: string[]
 ): ExtendedJsonMetadata {
   // get evolution attribute
@@ -88,18 +90,29 @@ export function getMetadataWithNewVariations(
     nftMetaData?.properties?.history ||
     getInitialHistory(nftCoverImageUrl, currentDate);
 
-  // get the parent into which we want to insert the new child
-  const parent = getVariationAtPath(oldHistory, indexPath)!;
+  const newHistory = { ...oldHistory };
+
+  // find index of prompt in prompt array
+  // adds prompt to newHistory if needed
+  let promptIndex: number = newHistory.prompts.indexOf(prompt);
+
+  if (promptIndex === -1) {
+    newHistory.prompts.push(prompt);
+    promptIndex = newHistory.prompts.length - 1;
+  }
+
+  // get parent into which we want to insert the new child
+  // adds the variations to newHistory
+  const parent = getVariationAtPath(newHistory, indexPath)!;
   newImageUrls.forEach((url) => {
     parent.variations.push({
       url,
-      date: currentDate,
-      prompt: 0, // TODO: needs to be dynamic to the prompt
+      created: currentDate,
+      prompt: promptIndex,
       variations: [],
     });
   });
 
-  // oldHistory was modified and contains the new imageResults
   const nftWithChangedMetaData = {
     ...nftMetaData,
     attributes: [
@@ -110,7 +123,7 @@ export function getMetadataWithNewVariations(
     ],
     properties: {
       ...nftMetaData.properties,
-      history: oldHistory,
+      history: newHistory,
     },
   };
 
@@ -201,7 +214,7 @@ function getInitialHistory(
       /// TODO: we should initialize this at mint instead
       {
         url: nftCoverImageUrl,
-        date: currentDate,
+        created: currentDate,
         prompt: 0,
         variations: [],
       },

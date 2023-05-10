@@ -58,7 +58,7 @@ export type ImageResult = {
   url: string;
 
   /// Creation timestamp
-  date: string;
+  created: string;
 
   /// Index into the top level [History.prompts] list
   ///

@@ -82,7 +82,7 @@ export async function getDreamStudioImgToImgVariation(
   const responseJSON = (await response.json()) as GenerationResponse;
 
   const newMetaplexImageUrls: string[] = [];
-
+  // TODO: Modify to allow a variable number of images
   for (let i = 0; i < responseJSON.artifacts.length; i++) {
     const artifact = responseJSON.artifacts[i];
     const buffer = base64ToArrayBuffer(artifact.base64);
@@ -101,8 +101,7 @@ export async function getDreamStudioImgToImgVariation(
     newMetaplexImageUrls.push(newMetaplexImageUrl);
 
     if (i < responseJSON.artifacts.length - 1) {
-      // wait for one second because of timeout
-      // of metaplex upload (at least on devnet)
+      // wait for one second because second upload to metaplex will fail (at least on devnet)
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
