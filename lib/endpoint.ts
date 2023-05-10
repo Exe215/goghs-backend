@@ -263,6 +263,7 @@ export async function createImageVariationAndUpdateNft(
   const nftWithChangedMetaData = getMetadataWithNewVariations(
     metadata,
     indexPath,
+    prompt,
     newMetaplexImageUrl
   );
 
