@@ -29,4 +29,11 @@ export enum Modification {
   Variation,
   CoverChange,
   ToggleFavorite,
+  SelectHouse,
+}
+
+export enum House {
+  Mona,
+  Gogh,
+  Frida,
 }

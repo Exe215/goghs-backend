@@ -147,7 +147,24 @@ app.post("/api/closeReceipt", async function (req, res) {
     await closeNftModification(req, program, PROGRAM_ID, WALLET, metaplex);
     res.sendStatus(200);
   } catch (e) {
-    console.log("Cover Change failed", e);
+    console.log("Close receipt failed", e);
+    res.sendStatus(400);
+  }
+});
+
+app.post("/api/selectHouse", async function (req, res) {
+  try {
+    await modifyNft(
+      req,
+      Modification.SelectHouse,
+      PROGRAM_ID,
+      WALLET,
+      program,
+      metaplex
+    );
+    res.sendStatus(200);
+  } catch (e) {
+    console.log("Select house failed", e);
     res.sendStatus(400);
   }
 });

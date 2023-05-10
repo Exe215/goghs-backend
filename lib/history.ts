@@ -9,6 +9,16 @@ import {
 import { Metaplex } from "@metaplex-foundation/js";
 import { getMetadataFromNftMintAddress } from "./solana";
 import { indexPathsEqual, dateToString } from "./helper";
+import { House } from "../types/program";
+
+const MONA_LISA =
+  "https://arweave.net/vAWGoT2FW6CU6C_E4Iz6lf46B_aQJPZPegjkuk82Ps0?ext=png";
+
+const FRIDA_KAHLO =
+  "https://arweave.net/o63XgEa9qmdTNjY7KvQ-VXu69NZ--C3y_ACbS11HefU?ext=png";
+
+const VAN_GOGH =
+  "https://arweave.net/Prrf0cwGZkSb3mip7BL8D5rZVkzYxCCGQW9bkAYGLd8?ext=png";
 
 /**
  * Get a reference to the variation at the given [indexPath].
@@ -76,19 +86,17 @@ export function getMetadataWithNewVariations(
   prompt: Prompt,
   newImageUrls: string[]
 ): ExtendedJsonMetadata {
-  // get evolution attribute
-  const nftCoverImageUrl = nftMetaData.image!;
-  const oldAttributes = nftMetaData?.attributes || [
-    { trait_type: "Evolution", value: "0" },
-  ];
+  const oldAttributes = nftMetaData?.attributes;
+
+  if (!oldAttributes) {
+    throw new Error("Can't find attributes in metadata");
+  }
   const oldEvolutionValue = Number(oldAttributes[0].value);
   const newEvolutionValue = oldEvolutionValue + 1;
 
   // get history property or init if freshly minted
   const currentDate = dateToString(new Date());
-  const oldHistory: NftHistory =
-    nftMetaData?.properties?.history ||
-    getInitialHistory(nftCoverImageUrl, currentDate);
+  const oldHistory: NftHistory = nftMetaData?.properties?.history;
 
   const newHistory = { ...oldHistory };
 
@@ -202,28 +210,57 @@ export async function toggleFavoriteOfVariation(
   return nftWithChangedMetaData;
 }
 
-function getInitialHistory(
-  nftCoverImageUrl: string,
-  currentDate: string
-): NftHistory {
+export async function setHouseSelection(
+  selectedHouse: House,
+  nftMetaData: ExtendedJsonMetadata
+): Promise<ExtendedJsonMetadata> {
+  const houseString = Object.keys(House).find(
+    (key) => House[key as keyof typeof House] === selectedHouse
+  );
+  const imageUrl = getBaseImageFromHouse(selectedHouse);
+  const history = getInitialHistory(imageUrl);
+  const nftWithChangedMetaData = {
+    ...nftMetaData,
+    attributes: [
+      {
+        trait_type: "Evolution",
+        value: "0",
+      },
+      {
+        trait_type: "Pioneer",
+        value: houseString,
+      },
+    ],
+    properties: {
+      ...nftMetaData.properties,
+      files: [
+        {
+          uri: imageUrl,
+          type: "image/png",
+        },
+      ],
+      history: history,
+    },
+    image: imageUrl,
+  };
+  return nftWithChangedMetaData;
+}
+
+function getInitialHistory(imageUrl: string): NftHistory {
+  const currentDate = dateToString(new Date());
+
   return {
-    // TODO: in the end we will have a placeholder mint image that is not the actual cover
     coverPath: [0],
     favorites: [],
     baseImages: [
-      /// TODO: we should initialize this at mint instead
       {
-        url: nftCoverImageUrl,
+        url: imageUrl,
         created: currentDate,
         prompt: 0,
         variations: [],
       },
     ],
-    prompts: [
-      // empty prompt is legal
-      // -> use that for baseImage
-      [],
-    ],
+    prompts: [],
     traitValues: [
       "eyes:sunglasses",
       "head:crown",
@@ -232,4 +269,25 @@ function getInitialHistory(
       "bg:clouds",
     ],
   };
+}
+
+function getBaseImageFromHouse(selectedHouse: House): string {
+  let imageUrl = "";
+
+  switch (selectedHouse) {
+    case House.Frida:
+      imageUrl = FRIDA_KAHLO;
+      break;
+    case House.Gogh:
+      imageUrl = VAN_GOGH;
+      break;
+    case House.Mona:
+      imageUrl = MONA_LISA;
+      break;
+    default:
+      throw new Error("House out of range");
+  }
+  console.log(`selected base image at: ${imageUrl}`);
+
+  return imageUrl;
 }

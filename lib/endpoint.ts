@@ -1,6 +1,7 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
 import {
   AlreadyInProgressError,
+  House,
   Modification,
   ReceiptData,
 } from "../types/program";
@@ -19,6 +20,7 @@ import {
 import {
   getImageAtPath,
   getMetadataWithNewVariations,
+  setHouseSelection,
   setNewCoverImage,
   toggleFavoriteOfVariation,
 } from "./history";
@@ -33,7 +35,7 @@ export async function closeNftModification(
   programId: PublicKey,
   signer: Keypair,
   metaplex: Metaplex
-) {
+): Promise<void> {
   // -----------------------------------------------------------------
   // Check parameters
 
@@ -76,7 +78,7 @@ export async function modifyNft(
   program: Program<GoghsProgram>,
   metaplex: Metaplex,
   openAi?: OpenAIApi
-) {
+): Promise<void> {
   // -----------------------------------------------------------------
   // Check parameters
 
@@ -154,6 +156,14 @@ export async function modifyNft(
           metaplex
         );
         break;
+      case Modification.SelectHouse:
+        await selectHouseAndUpdateNft(
+          nftAddress,
+          userAddress,
+          programId,
+          program,
+          metaplex
+        );
       default:
         break;
     }
@@ -189,7 +199,7 @@ export async function toggleFavoriteAndUpdateNft(
   programId: PublicKey,
   program: Program<GoghsProgram>,
   metaplex: Metaplex
-) {
+): Promise<void> {
   const { receiptPda } = getProgramAccounts(nftAddress, userAddress, programId);
 
   const { receiptIndexPath: indexPath } = await getReceiptData(
@@ -226,7 +236,7 @@ export async function createImageVariationAndUpdateNft(
   program: Program<GoghsProgram>,
   metaplex: Metaplex,
   openai: OpenAIApi
-) {
+): Promise<void> {
   const { receiptPda } = getProgramAccounts(nftAddress, userAddress, programId);
 
   const { receiptIndexPath: indexPath, prompt }: ReceiptData =
@@ -286,7 +296,7 @@ export async function setNewCoverImageAndUpdateNft(
   programId: PublicKey,
   program: Program<GoghsProgram>,
   metaplex: Metaplex
-) {
+): Promise<void> {
   const nftMetaData = await getMetadataFromNftMintAddress(nftAddress, metaplex);
 
   const { receiptPda } = getProgramAccounts(nftAddress, userAddress, programId);
@@ -305,5 +315,44 @@ export async function setNewCoverImageAndUpdateNft(
     metaplex,
     nftAddress,
     metadataWithNewCoverImage
+  );
+}
+
+export async function selectHouseAndUpdateNft(
+  nftAddress: PublicKey,
+  userAddress: PublicKey,
+  programId: PublicKey,
+  program: Program<GoghsProgram>,
+  metaplex: Metaplex
+) {
+  const { receiptPda } = getProgramAccounts(nftAddress, userAddress, programId);
+
+  const nftMetaData = await getMetadataFromNftMintAddress(nftAddress, metaplex);
+
+  // IndexPath is used as variable for the selected house
+  const { instructionType, receiptIndexPath: indexPath } = await getReceiptData(
+    receiptPda,
+    program
+  );
+
+  if (instructionType != Modification.SelectHouse) {
+    throw new Error("Wrong instruction type in receipt");
+  }
+
+  if (indexPath.length != 1 && indexPath[0] >= 0 && indexPath[0] <= 3) {
+    throw new Error("House selection not clear");
+  }
+
+  const selectedHouse = indexPath[0];
+
+  const metadataWithSelectedHouse = await setHouseSelection(
+    selectedHouse,
+    nftMetaData
+  );
+
+  await updateNftWithNewMetadata(
+    metaplex,
+    nftAddress,
+    metadataWithSelectedHouse
   );
 }
