@@ -27,7 +27,10 @@ import {
 import { getImageBufferFromUrl } from "./helper";
 import { ExtendedJsonMetadata } from "../types/history";
 import { getDreamStudioImgToImgVariation } from "./api";
-import { checkIfSelectedPromptIsValid, generateTextFromPrompt } from "./prompt";
+import {
+  checkIfNftContainsTraitValueGivenInPrompt,
+  generateTextFromPrompt,
+} from "./prompts/prompt";
 
 export async function closeNftModification(
   req: any,
@@ -259,7 +262,7 @@ export async function createImageVariationAndUpdateNft(
   const metadata = await getMetadataFromNftMintAddress(nftAddress, metaplex);
 
   // throws an error if a trait in prompt is not valid
-  checkIfSelectedPromptIsValid(prompt, metadata);
+  checkIfNftContainsTraitValueGivenInPrompt(prompt, metadata);
 
   const promptText = generateTextFromPrompt(prompt);
 

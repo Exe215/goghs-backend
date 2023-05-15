@@ -28,6 +28,9 @@ their resolution to actual prompts on the backend
 */
 export type TraitValueId = String;
 
+// One line of the final prompt as a result of traitValueId
+export type PromptBlock = String;
+
 export type Prompt = TraitValueId[];
 
 export type NftHistory = {
@@ -51,6 +54,8 @@ export enum TraitId {
   misc, // michellesanus
   bg, // background
 }
+
+export type TraitValue = string;
 
 export type ImageResult = {
   /// Path to the hosted image resource

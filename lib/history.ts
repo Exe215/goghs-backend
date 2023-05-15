@@ -101,7 +101,7 @@ export function getMetadataWithNewVariations(
   const newHistory = { ...oldHistory };
 
   // find index of prompt in prompt array
-  // adds prompt to newHistory if needed
+  //  prompt to newHistory if needed
   let promptIndex: number = newHistory.prompts.indexOf(prompt);
 
   if (promptIndex === -1) {
