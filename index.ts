@@ -18,7 +18,7 @@ const BASE_IMAGE_URL =
   "https://arweave.net/I2dvS-utEDRcvfzRyUFls3SFP-3MkAfb_RFamxnIeSw?ext=png";
 
 const configuration = new Configuration({
-  apiKey: "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",
+  apiKey: "",
 });
 const openai = new OpenAIApi(configuration);
 
