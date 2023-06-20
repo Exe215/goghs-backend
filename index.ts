@@ -25,7 +25,7 @@ const PROGRAM_ID = new PublicKey(
 
 // OpenAi Setup
 const configuration = new Configuration({
-  apiKey: "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",
+  apiKey: "",
 });
 const openai = new OpenAIApi(configuration);
 
